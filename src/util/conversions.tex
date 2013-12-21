@@ -1,0 +1,107 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{scaladefs}
+\usepackage{scalit}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\lhead{\today}
+\rhead{util/conversions.nw}
+\begin{document}
+\section{Conversions}
+With all the literate programming utilities in place, we will want to access
+different stages without always setting up a \texttt{MarkupGenerator}, reading
+files etc. The following conversion functions will prove useful:
+
+$\left<\mbox{\emph{*}}\right>\equiv$
+\begin{program}{\vem package}~scalit.util
+\\[0.5em]{\vem object}~conversions~{\small\{}
+\\~~~~$<$to~line~format$>$
+\\[0.5em]~~~~$<$to~block~format$>$
+\\{\small\}}
+\\[0.5em]\end{program}\objectdefinition{conversions}
+
+
+
+\subsection{Conversions to line format}
+The line format will usally be the first step. It is usually either generated
+from a file or from standard input:
+
+$\left<\mbox{\emph{to line format}}\right>\equiv$
+\begin{program}{\vem import}~java.io.{\small\{}BufferedReader,FileReader,InputStreamReader{\small\}}
+\\{\vem import}~scala.util.parsing.input.StreamReader
+\\[0.5em]{\vem import}~markup.{\small\{}Line,MarkupGenerator{\small\}}
+\\[0.5em]{\vem def}~linesFromLiterateFile$($filename\,{\rm :}~String$)${\rm :}~Stream$[$Line$]$~=~{\small\{}
+\\~~~~{\vem val}~input~=~StreamReader$($
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\vem new}~BufferedReader$($
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\vem new}~FileReader$($filename$)$$)$$)$
+\\~~~~$(${\vem new}~MarkupGenerator$($input,filename$)$$)$.lines
+\\{\small\}}
+\\[0.5em]{\vem def}~linesFromLiterateInput$($in\,{\rm :}~java.io.InputStream$)${\rm :}~Stream$[$Line$]$~=~{\small\{}
+\\~~~~{\vem val}~input~=~StreamReader$(${\vem new}~InputStreamReader$($in$)$$)$
+\\~~~~$(${\vem new}~MarkupGenerator$($input,""$)$$)$.lines
+\\{\small\}}
+\\[0.5em]\end{program}\methoddefinition{conversions}{linesFromLiterateFile}
+\methoddefinition{conversions}{linesFromLiterateInput}
+
+
+
+We could, of course also get input in markup format. This is treated in
+the class \texttt{MarkupReader}:
+
+$\left<\mbox{\emph{to line format}}\right>+\equiv$
+\begin{program}{\vem import}~markup.MarkupParser
+\\{\vem def}~linesFromMarkupFile$($filename\,{\rm :}~String$)${\rm :}~Stream$[$Line$]$~=~{\small\{}
+\\~~~~{\vem val}~input~=~StreamReader$($
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\vem new}~BufferedReader$($
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\vem new}~FileReader$($filename$)$$)$$)$
+\\[0.5em]~~~~$(${\vem new}~MarkupParser$($input$)$$)$.lines
+\\{\small\}}
+\\[0.5em]{\vem def}~linesFromMarkupInput$($in\,{\rm :}~java.io.InputStream$)${\rm :}~Stream$[$Line$]$~=~{\small\{}
+\\~~~~{\vem val}~input~=~StreamReader$(${\vem new}~InputStreamReader$($in$)$$)$
+\\~~~~$(${\vem new}~MarkupParser$($input$)$$)$.lines
+\\{\small\}}
+\\[0.5em]
+\end{program}\methoddefinition{conversions}{linesFromMarkupFile}
+\methoddefinition{conversions}{linesFromMarkupInput}
+
+
+
+\subsection{Conversions to block format}
+The block format takes a stream of lines as input, so we will have four similiar functions
+that just call the corresponding line generating functions.
+
+$\left<\mbox{\emph{to block format}}\right>\equiv$
+\begin{program}{\vem import}~markup.{\small\{}BlockBuilder,Block{\small\}}
+\\{\vem def}~blocksFromLiterateFile$($filename\,{\rm :}~String$)${\rm :}~Stream$[$Block$]$~=
+\\~~~~BlockBuilder$($linesFromLiterateFile$($filename$)$$)$.blocks
+\\[0.5em]{\vem def}~blocksFromLiterateInput$($in\,{\rm :}~java.io.InputStream$)${\rm :}~Stream$[$Block$]$~=
+\\~~~~BlockBuilder$($linesFromLiterateInput$($in$)$$)$.blocks
+\\[0.5em]{\vem def}~blocksFromMarkupFile$($filename\,{\rm :}~String$)${\rm :}~Stream$[$Block$]$~=
+\\~~~~BlockBuilder$($linesFromMarkupFile$($filename$)$$)$.blocks
+\\[0.5em]{\vem def}~blocksFromMarkupInput$($in\,{\rm :}~java.io.InputStream$)${\rm :}~Stream$[$Block$]$~=
+\\~~~~BlockBuilder$($linesFromMarkupInput$($in$)$$)$.blocks
+\\[0.5em]\end{program}\methoddefinition{conversions}{blocksFromLiterateFile}
+\methoddefinition{conversions}{blocksFromLiterateInput}
+\methoddefinition{conversions}{blocksFromMarkupFile}
+\methoddefinition{conversions}{blocksFromMarkupInput}
+
+
+
+Another demand will be to just get the code blocks (for tangle, for example).
+We'll also have to make a (safe) downcast, unfortunately.
+
+$\left<\mbox{\emph{to block format}}\right>+\equiv$
+\begin{program}{\vem import}~markup.{\small\{}CodeBlock,DocuBlock{\small\}}
+\\{\vem def}~codeblocks$($blocks\,{\rm :}~Stream$[$Block$]$$)${\rm :}~Stream$[$CodeBlock$]$~=
+\\~~~~$($blocks~filter~{\small\{}
+\\~~~~~~~~{\vem case}~c\,{\rm :}~CodeBlock~$\Rightarrow$~{\vem true}
+\\~~~~~~~~{\vem case}~d\,{\rm :}~DocuBlock~$\Rightarrow$~{\vem false}
+\\~~~~{\small\}}$)$.asInstanceOf$[$Stream$[$CodeBlock$]$$]$
+\end{program}\methoddefinition{conversions}{codeblocks}
+
+
+
+\end{document}
+
+

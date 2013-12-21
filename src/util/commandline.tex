@@ -1,0 +1,259 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{scaladefs}
+\usepackage{scalit}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\lhead{\today}
+\rhead{util/commandline.nw}
+\begin{document}
+\section{Support for command line arguments}
+All the different command line tools produced (\texttt{tangle}, \texttt{weave},
+the one-step-compiler) have some things in common: They take as input
+either markup files or literate files. Also, it would be quite useful to
+specify more than one of them, for example to create a woven document out of
+several input files. The class \texttt{LiterateSettings} will provide exactly this
+functionality. It is not as evolved as the compiler settings and will just
+remember arguments that it does not know about.
+
+$\left<\mbox{\emph{*}}\right>\equiv$
+\begin{program}{\vem package}~scalit.util
+\\{\vem import}~scalit.markup.\_
+\\[0.5em]{\vem object}~LiterateSettings~{\small\{}
+\\~~~~$<$getting~the~arguments$>$
+\\{\small\}}
+\\[0.5em]{\vem class}~LiterateSettings$(${\vem val}~settings\,{\rm :}~Map$[$String,List$[$String$]$$]$,
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ls\,{\rm :}~List$[$Stream$[$Line$]$$]$$)$~{\small\{}
+\\~~~~$<$Constructor~{\vem with}~argument~list$>$
+\\[0.5em]~~~~$<$a~reference~to~output$>$
+\\~~~~$<$getting~the~filters$>$
+\\~~~~$<$getting~the~lines$>$
+\\~~~~$<$getting~the~blocks$>$
+\\~~~~$<$getting~the~chunks$>$
+\\{\small\}}
+\\[0.5em]\end{program}\classdefinition{LiterateSettings}
+\objectdefinition{LiterateSettings}
+\valuedefinition{LiterateSettings}{settings }
+\valuedefinition{LiterateSettings}{ls}
+
+
+
+We have two fields here: One is for all the settings that we got and
+the other is for the input files. But we won't really use this constructor:
+We'd rather directly take the arguments given to the application.
+
+\subsection{Parsing the command line arguments}
+The usual way to call \texttt{LiterateSettings} is with an argument list in
+form of an array of strings. Inside this constructor, we'll obtain the
+value for settings and lines with a call to a recursive function.
+
+$\left<\mbox{\emph{Constructor with argument list}}\right>\equiv$
+\begin{program}~~~~{\vem def}~{\vem this}$($p\,{\rm :}~$($Map$[$String,List$[$String$]$$]$,List$[$Stream$[$Line$]$$]$$)$$)$~=
+\\~~~~~~~~{\vem this}$($p.\_1,~p.\_2$)$
+\\[0.5em]~~~~{\vem def}~{\vem this}$($args\,{\rm :}~Array$[$String$]$$)$~=
+\\~~~~~~~~{\vem this}$($LiterateSettings.getArgs$($args.toList,Map$($$)$,Nil$)$$)$
+\\[0.5em]\end{program}\methoddefinition{LiterateSettings}{$\langle$init$\rangle$}
+\methoddefinition{LiterateSettings}{$\langle$init$\rangle$}
+
+
+
+Now to get the arguments, we go element for element through
+the list, trying to obtain something: This function has to be defined
+outside of the class \texttt{LiterateSettings}, because it will be called
+before the object exists.
+
+$\left<\mbox{\emph{getting the arguments}}\right>\equiv$
+\begin{program}~~~~{\vem def}~getArgs$($args\,{\rm :}~List$[$String$]$,~settings\,{\rm :}~Map$[$String,List$[$String$]$$]$,
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~lines\,{\rm :}~List$[$Stream$[$Line$]$$]$$)$~{\rm :}
+\\~~~~~~~~~~~~$($Map$[$String,List$[$String$]$$]$,List$[$Stream$[$Line$]$$]$$)$~=~args~{\vem match}~{\small\{}
+\\[0.5em]\end{program}\methoddefinition{LiterateSettings}{getArgs}
+
+
+
+If any filename is prefixed by an argument consisting of \texttt{-m},
+then we parse some lines from markup input:
+
+$\left<\mbox{\emph{getting the arguments}}\right>+\equiv$
+\begin{program}{\vem case}~"$-$m"~{\rm :}{\rm :}~markupfile~{\rm :}{\rm :}~xs~$\Rightarrow$~{\small\{}
+\\~~~~{\vem val}~mlines~=~conversions.linesFromMarkupFile$($markupfile$)$
+\\~~~~getArgs$($xs,settings,mlines~{\rm :}{\rm :}~lines$)$
+\\{\small\}}
+\\[0.5em]\end{program}
+
+
+We might also read from standard input. With the command line option
+of \texttt{-li}, we try to read a literate program, with \texttt{-mi}, we try
+to read markup input:
+
+$\left<\mbox{\emph{getting the arguments}}\right>+\equiv$
+\begin{program}{\vem case}~"$-$li"~{\rm :}{\rm :}~Nil~$\Rightarrow$~{\small\{}
+\\~~~~{\vem val}~llines~=~conversions.linesFromLiterateInput$($System.in$)$
+\\~~~~$($settings,~lines.reverse~{\rm :}{\rm :}{\rm :}~List$($llines$)$$)$
+\\{\small\}}
+\\{\vem case}~"$-$mi"~{\rm :}{\rm :}~Nil~$\Rightarrow$~{\small\{}
+\\~~~~{\vem val}~mlines~=~conversions.linesFromMarkupInput$($System.in$)$
+\\~~~~$($settings,lines.reverse~{\rm :}{\rm :}{\rm :}~List$($mlines$)$$)$
+\\{\small\}}
+\\[0.5em]\end{program}
+
+
+\subsubsection{Additional command line arguments}
+If the frontmost element of \texttt{args} begins with \texttt{-}, that means we
+are dealing with an option that takes one argument (all the other cases
+were dealt with before). We append it to the list of arguments already
+given with this option
+
+$\left<\mbox{\emph{getting the arguments}}\right>+\equiv$
+\begin{program}{\vem case}~opt~{\rm :}{\rm :}~arg~{\rm :}{\rm :}~xs~$\Rightarrow$
+\\~~~~{\vem if}$($~opt$($0$)$~$==$~'$-$'~$)$
+\\~~~~~~~~getArgs$($xs,settings~$+$
+\\~~~~~~~~~~~~~~~~~~~~~~~~$($opt~$\rightarrow$~$($arg~{\rm :}{\rm :}~settings.getOrElse$($opt,Nil$)$$)$$)$,
+\\~~~~~~~~~~~~~~~~~~~~~~lines$)$
+\\~~~~{\vem else}~{\small\{}
+\\~~~~~~~~{\vem val}~llines~=~conversions.linesFromLiterateFile$($opt$)$
+\\~~~~~~~~getArgs$($arg~{\rm :}{\rm :}~xs,~settings,~llines~{\rm :}{\rm :}~lines$)$
+\\~~~~{\small\}}
+\\[0.5em]\end{program}
+
+
+We have to treat the case where we get \texttt{``-o''} specially:
+in this case, we'll have to provide output to a file:
+
+$\left<\mbox{\emph{a reference to output}}\right>\equiv$
+\begin{program}~~{\vem lazy}~{\vem val}~output\,{\rm :}~java.io.PrintStream~=
+\\~~~~~~settings~get~"$-$o"~{\vem match}~{\small\{}
+\\~~~~~~~~~~{\vem case}~None~$\Rightarrow$~System.out
+\\~~~~~~~~~~{\vem case}~Some$($List$($file$)$$)$~$\Rightarrow$~{\vem new}~java.io.PrintStream$($
+\\~~~~~~~~~~~~~~{\vem new}~java.io.FileOutputStream$($file$)$
+\\~~~~~~~~~~$)$
+\\~~~~~~{\small\}}
+\\[0.5em]\end{program}
+
+
+Finally, if there is only one argument left, then it has to be
+an input from a literate file, otherwise it would have been treated:
+
+$\left<\mbox{\emph{getting the arguments}}\right>+\equiv$
+\begin{program}{\vem case}~litfile~{\rm :}{\rm :}~xs~$\Rightarrow$~{\small\{}
+\\~~~~{\vem val}~llines~=~conversions.linesFromLiterateFile$($litfile$)$
+\\~~~~getArgs$($xs,settings,llines~{\rm :}{\rm :}~lines$)$
+\\{\small\}}
+\\{\vem case}~Nil~$\Rightarrow$~$($settings,lines.reverse$)$
+\\{\small\}}
+\\[0.5em]\end{program}
+
+
+\subsection{Filters}
+We can also, on the command line specify filters to be applied to the
+markup or block phase. Filters are just classes extending from
+\texttt{MarkupFilter} or \texttt{BlockFilter}. The following two fields hold
+reference to these filters:
+
+$\left<\mbox{\emph{getting the filters}}\right>\equiv$
+\begin{program}~~~~{\vem import}~scalit.util.{\small\{}MarkupFilter,BlockFilter{\small\}}
+\\~~~~{\vem val}~markupFilters\,{\rm :}~List$[$MarkupFilter$]$~=
+\\~~~~~~~~settings~get~$($"$-$lfilter"$)$~{\vem match}~{\small\{}
+\\~~~~~~~~~~~~{\vem case}~None~$\Rightarrow$~Nil
+\\~~~~~~~~~~~~{\vem case}~Some$($xs$)$~$\Rightarrow$~{\small\{}
+\\[0.5em]\end{program}
+
+
+If we have some names, then we will try to load them using reflection,
+creating an instance for each class.
+
+$\left<\mbox{\emph{getting the filters}}\right>+\equiv$
+\begin{program}xs~map~{\small\{}
+\\~~~~name~$\Rightarrow$
+\\~~~~~~~~{\vem try}~{\small\{}
+\\~~~~~~~~~~~~{\vem val}~filterClass~=~Class.forName$($name$)$
+\\~~~~~~~~~~~~filterClass.newInstance.asInstanceOf$[$MarkupFilter$]$
+\\~~~~~~~~{\small\}}~{\vem catch}~{\small\{}
+\\~~~~~~~~~~~~{\vem case}~ex~$\Rightarrow$
+\\~~~~~~~~~~~~~~~~Console.err.println$($"Could~not~load~filter~"~$+$~name$)$
+\\~~~~~~~~~~~~~~~~System.exit$($1$)$
+\end{program}
+
+
+Somehow, System.exit is not enough for the type checker, therefore we will
+have to give back some dummy class if that happens.
+
+$\left<\mbox{\emph{getting the filters}}\right>+\equiv$
+\begin{program}~~~~~~~~~~~~~~~~{\vem new}~util.tee
+\\~~~~~~~~{\small\}}
+\\~~~~~~{\small\}}
+\\~~~~{\small\}}
+\\{\small\}}
+\\[0.5em]\end{program}
+
+
+With block filters, it's exactly the same story:
+
+$\left<\mbox{\emph{getting the filters}}\right>+\equiv$
+\begin{program}{\vem lazy}~{\vem val}~blockFilters\,{\rm :}~List$[$BlockFilter$]$~=
+\\~~~~settings~get~"$-$bfilter"~{\vem match}~{\small\{}
+\\~~~~~~~~{\vem case}~None~$\Rightarrow$~Nil
+\\~~~~~~~~{\vem case}~Some$($xs$)$~$\Rightarrow$~xs~map~{\small\{}
+\\~~~~~~~~~~~~name~$\Rightarrow$
+\\~~~~~~~~~~~~~~~~{\vem try}~{\small\{}
+\\~~~~~~~~~~~~~~~~~~~~{\vem val}~filterClass~=~Class.forName$($name$)$
+\\~~~~~~~~~~~~~~~~~~~~filterClass.newInstance.asInstanceOf$[$BlockFilter$]$
+\\~~~~~~~~~~~~~~~~{\small\}}~{\vem catch}~{\small\{}
+\\~~~~~~~~~~~~~~~~~~~~{\vem case}~e~$\Rightarrow$
+\\~~~~~~~~~~~~~~~~~~~~~~~~Console.err.println$($"Could~not~load"~$+$
+\\~~~~~~~~~~~~~~~~~~~~~~~~"~block~filter~"~$+$~name$)$
+\\~~~~~~~~~~~~~~~~~~~~~~~~System.exit$($1$)$
+\\~~~~~~~~~~~~~~~~~~~~~~~~{\vem new}~util.stats
+\\~~~~~~~~~~~~~~~~{\small\}}
+\\~~~~~~~~{\small\}}
+\\~~~~{\small\}}
+\\[0.5em]\end{program}
+
+
+\subsection{Getting the content of the lines in different formats}
+With the settings in place, it is very easy to get the actual content
+of the files in different formats. We will just have to take care of the
+filters:
+
+$\left<\mbox{\emph{getting the lines}}\right>\equiv$
+\begin{program}~~~~{\vem lazy}~{\vem val}~lines\,{\rm :}~List$[$Stream$[$Line$]$$]$~=~ls~map~{\small\{}
+\\~~~~~~~~markupStream\,{\rm :}~Stream$[$Line$]$~$\Rightarrow$~markupStream
+\\~~~~~~~~~~~~$($markupFilters~foldLeft~markupStream$)$~{\small\{}
+\\~~~~~~~~~~~~~~~~$($acc\,{\rm :}~Stream$[$Line$]$,~f\,{\rm :}~MarkupFilter$)$~$\Rightarrow$~f$($acc$)$
+\\~~~~~~~~~~~~{\small\}}
+\\~~~~{\small\}}
+\\[0.5em]\end{program}
+
+
+To build the blocks, we'll just have to instantiate a block builder
+for every stream of lines. Also, we'll have to apply the filters in order,
+of course.
+
+$\left<\mbox{\emph{getting the blocks}}\right>\equiv$
+\begin{program}~~~~{\vem val}~blocks\,{\rm :}~List$[$$($Stream$[$markup.Block$]$,String$)$$]$~=~lines~map~{\small\{}
+\\~~~~~~~~l~$\Rightarrow$~{\small\{}
+\\~~~~~~~~~~~~{\vem val}~bb~=~BlockBuilder$($l$)$
+\\~~~~~~~~~~~~{\vem val}~filteredBlocks\,{\rm :}~Stream$[$Block$]$~=
+\\~~~~~~~~~~~~~~~~$($blockFilters~foldLeft~bb.blocks$)$~{\small\{}
+\\~~~~~~~~~~~~~~~~~~~~$($acc\,{\rm :}~Stream$[$Block$]$,f\,{\rm :}~BlockFilter$)$~$\Rightarrow$~f$($acc$)$
+\\~~~~~~~~~~~~~~~~{\small\}}
+\\~~~~~~~~~~~~$($filteredBlocks,bb.filename$)$
+\\~~~~~~~~{\small\}}
+\\~~~~{\small\}}
+\\[0.5em]\end{program}
+
+
+The chunk collections work in a very similar way.
+
+$\left<\mbox{\emph{getting the chunks}}\right>\equiv$
+\begin{program}{\vem import}~scalit.tangle.emptyChunkCollection
+\\{\vem lazy}~{\vem val}~chunkCollections~=~blocks~map~{\small\{}
+\\~~~~{\vem case}~$($bs,name$)$~$\Rightarrow$
+\\~~~~emptyChunkCollection$($name$)$~addBlocks~conversions.codeblocks$($bs$)$
+\\{\small\}}
+\end{program}
+
+
+\end{document}
+
+

@@ -1,0 +1,252 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{scaladefs}
+\usepackage{scalit}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\lhead{\today}
+\rhead{util/filters.nw}
+\begin{document}
+\section{A filter mechanism for Scalit}
+The literate programming mechanism proposed until now is a very static thing,
+you only have a few choices (whether you want syntax highlighting, an index
+etc.). Things that you possibly would want to do is to convert a file from
+its LaTeX formatting into HTML, or add other syntax highlighting.
+
+This file demonstrates a simple filter mechanism for Scalit, which is
+based on intervention in two stages: On the markup level and on the
+block level. Such filter modules can then be loaded by using reflection.
+
+$\left<\mbox{\emph{*}}\right>\equiv$
+\begin{program}{\vem package}~scalit.util
+\\[0.5em]$<$Filtering~on~Markup~level$>$
+\\[0.5em]$<$Sample~markup~filters$>$
+\\[0.5em]$<$Filtering~on~Block~level$>$
+\\[0.5em]$<$Sample~block~filters$>$
+\\[0.5em]\end{program}
+
+
+\subsection{Filtering on the Markup level}
+Applying a filter on the markup level is quite limited in its capabilities
+as we only have access to information encoded in these lines. Nevertheless,
+for example a LaTeX-to-HTML converter could be implemented on this level.
+
+These filters are basically functions from the input stream of lines to
+an altered stream of lines, therefore we inherit from this function:
+
+$\left<\mbox{\emph{Filtering on Markup level}}\right>\equiv$
+\begin{program}{\vem import}~markup.Line
+\\{\vem abstract}~{\vem class}~MarkupFilter~{\vem extends}
+\\~~~~$($Stream$[$Line$]$~$\Rightarrow$~Stream$[$Line$]$$)$~{\small\{}
+\\~~~~$<$Feed~external~utility~{\vem with}~lines$>$
+\\{\small\}}
+\\[0.5em]\end{program}\classdefinition{MarkupFilter}
+
+
+
+Note that such filters can also wrap standard Unix tools by feeding them
+the lines on standard input and parsing the filtered output with a MarkupParser.
+
+$\left<\mbox{\emph{Feed external utility with lines}}\right>\equiv$
+\begin{program}~~~~{\vem def}~externalFilter$($command\,{\rm :}~String,
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~lines\,{\rm :}~Stream$[$Line$]$$)${\rm :}~Stream$[$Line$]$~=~{\small\{}
+\end{program}\methoddefinition{MarkupFilter}{externalFilter}
+
+
+
+We take it we are dealing with utilities that take the markup format stream
+as standard input. If that is not the case, then you will have to write a custom
+function.
+
+The following code is very Java-intensive and will therefore have to be changed
+as soon as Scala gets its own form of process control.
+
+First, we'll have to start the process:
+
+$\left<\mbox{\emph{Feed external utility with lines}}\right>+\equiv$
+\begin{program}~~~~~~~~{\vem val}~p~=~Runtime.getRuntime$($$)$.exec$($command$)$
+\\[0.5em]\end{program}
+
+
+Ok, now we'll have to pass this process a print-out of the lines. We'll do this
+using a print writer:
+
+$\left<\mbox{\emph{Feed external utility with lines}}\right>+\equiv$
+\begin{program}~~~~~~~~{\vem val}~procWriter~=~{\vem new}~java.io.PrintWriter$($p.getOutputStream$($$)$$)$
+\\[0.5em]\end{program}
+
+
+Now let us write to this process:
+
+$\left<\mbox{\emph{Feed external utility with lines}}\right>+\equiv$
+\begin{program}~~~~~~~~lines~foreach~procWriter.println
+\\[0.5em]\end{program}
+
+
+The input will now be obtained from the input stream, parsed again in line format.
+For this, we use the conversion utility described in \texttt{uti/conversions.nw},
+\texttt{linesFromLiterateInput}. We then return this result
+
+$\left<\mbox{\emph{Feed external utility with lines}}\right>+\equiv$
+\begin{program}~~~~~~~~procWriter.close$($$)$
+\\~~~~~~~~p.waitFor$($$)$
+\\~~~~~~~~util.conversions.linesFromMarkupInput$($p.getInputStream$($$)$$)$
+\\~~~~{\small\}}
+\\[0.5em]\end{program}
+
+
+\subsubsection{Tee: A sample line filter}
+To exemplify how such an external tool could be used, the following filter calls
+the unix utility \texttt{tee}, which just replicates its input on the output while
+also writing to a file.
+
+$\left<\mbox{\emph{Sample markup filters}}\right>\equiv$
+\begin{program}{\vem class}~tee~{\vem extends}~MarkupFilter~{\small\{}
+\\~~~~{\vem def}~apply$($lines\,{\rm :}~Stream$[$Line$]$$)${\rm :}~Stream$[$Line$]$~=~{\small\{}
+\\~~~~~~~~externalFilter$($"tee~out",lines$)$
+\\~~~~{\small\}}
+\\{\small\}}
+\\[0.5em]\end{program}\classdefinition{tee}
+\methoddefinition{tee}{apply}
+
+
+
+\subsubsection{SimpleSubst: Another example}
+Filters can also be written in pure Scala, avoiding the overhead of calling an
+external process and reparsing the markup lines. The following example replaces
+the sequence "LaTeX" with its nice form: \LaTeX
+
+$\left<\mbox{\emph{Sample markup filters}}\right>+\equiv$
+\begin{program}{\vem class}~simplesubst~{\vem extends}~MarkupFilter~{\small\{}
+\\~~~~{\vem def}~apply$($lines\,{\rm :}~Stream$[$Line$]$$)${\rm :}~Stream$[$Line$]$~=~{\small\{}
+\\~~~~~~~~{\vem import}~markup.TextLine
+\\~~~~~~~~lines~map~{\small\{}
+\\~~~~~~~~~~~~{\vem case}~TextLine$($cont$)$~$\Rightarrow$
+\\~~~~~~~~~~~~~~~~TextLine$($cont.replace$($"~"~$+$~"LaTeX~","~$\backslash$$\backslash$LaTeX~"$)$$)$
+\\~~~~~~~~~~~~{\vem case}~unchanged~$\Rightarrow$~unchanged
+\\~~~~~~~~{\small\}}
+\\~~~~{\small\}}
+\\{\small\}}
+\\[0.5em]\end{program}\classdefinition{simplesubst}
+\methoddefinition{simplesubst}{apply}
+
+
+
+Now that the filter is defined, using it is as simple as invoking
+
+\begin{verbatim}
+sweave -lfilter util.simplesubst lp.nw -o lp.tex
+\end{verbatim}
+
+\subsection{Filtering on the Block level}
+Filters on the chunk level are already far more powerful. We already
+have a high-level view of the document and can do the same level of analysis
+that we use for the index generation (which is not in filter form).
+
+What we get here as input is the stream of blocks and we return an altered
+stream of blocks. At the moment, no further help is given to the programmer
+in the form of utility functions, so we basically can define the interface
+in one line:
+
+$\left<\mbox{\emph{Filtering on Block level}}\right>\equiv$
+\begin{program}{\vem import}~markup.Block
+\\{\vem abstract}~{\vem class}~BlockFilter~{\vem extends}
+\\~~~~$($Stream$[$Block$]$~$\Rightarrow$~Stream$[$Block$]$$)$~{\small\{}
+\\{\small\}}
+\\[0.5em]\end{program}\classdefinition{BlockFilter}
+
+
+
+\subsubsection{A block-level example: Stats}
+While we do not have much help for filters, writing them still is not
+too hard, as this simple example (that collects statistics on how
+many lines of code vs how many lines of documentation were provided).
+
+We could also access the tangled output, but in the interest of simplicity,
+this example will only deal with the unstructured blocks:
+
+$\left<\mbox{\emph{Sample block filters}}\right>\equiv$
+\begin{program}{\vem class}~stats~{\vem extends}~BlockFilter~{\small\{}
+\\~~~~{\vem def}~apply$($blocks\,{\rm :}~Stream$[$Block$]$$)${\rm :}~Stream$[$Block$]$~=~{\small\{}
+\\~~~~~~~~{\vem val}~$($doclines,codelines$)$~=~collectStats$($blocks$)$
+\\[0.5em]\end{program}\classdefinition{stats}
+\methoddefinition{stats}{apply}
+
+
+
+With these values, we can build a new documentation block
+holding them:
+
+$\left<\mbox{\emph{Sample block filters}}\right>+\equiv$
+\begin{program}~~~~~~~~{\vem import}~markup.{\small\{}TextLine,NewLine{\small\}}
+\\~~~~~~~~{\vem val}~content~=
+\\~~~~~~~~~~~~Stream.cons$($NewLine,
+\\~~~~~~~~~~~~Stream.cons$($TextLine$($"Documentation~lines\,{\rm :}~"~$+$
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~doclines~$+$
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",~Code~lines\,{\rm :}~"~$+$
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~codelines$)$,
+\\~~~~~~~~~~~~Stream.cons$($NewLine,Stream.empty$)$$)$$)$
+\\~~~~~~~~Stream.concat$($blocks,Stream.cons$($
+\\~~~~~~~~~~~~markup.DocuBlock$($$-$1,$-$1,content$)$,Stream.empty$)$$)$
+\\~~~~{\small\}}
+\\[0.5em]\end{program}
+
+
+Now for the main collection function: It just traverses the
+content of the blocks in unprocessed form:
+
+$\left<\mbox{\emph{Sample block filters}}\right>+\equiv$
+\begin{program}~~~~{\vem def}~collectStats$($bs\,{\rm :}~Stream$[$Block$]$$)${\rm :}~$($Int,Int$)$~=~{\small\{}
+\\~~~~~~~~{\vem def}~collectStats0$($str\,{\rm :}~Stream$[$Block$]$,
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~doclines\,{\rm :}~Int,
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~codelines\,{\rm :}~Int$)${\rm :}~$($Int,Int$)$~=~str~{\vem match}~{\small\{}
+\\~~~~~~~~~~~~~~{\vem case}~Stream.empty~$\Rightarrow$~$($doclines,codelines$)$
+\\~~~~~~~~~~~~~~{\vem case}~Stream.cons$($first,rest$)$~$\Rightarrow$~first~{\vem match}~{\small\{}
+\\[0.5em]\end{program}\methoddefinition{stats}{collectStats}
+
+
+
+If a code block is encountered, then we will just increment the
+number of lines of code:
+
+$\left<\mbox{\emph{Sample block filters}}\right>+\equiv$
+\begin{program}~~~~~~~~~~~~~~~~~~{\vem case}~markup.CodeBlock$($\_,\_,lines,\_$)$~$\Rightarrow$
+\\~~~~~~~~~~~~~~~~~~~~~~{\vem val}~codels~=~$($lines~foldLeft~0$)$~{\small\{}
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~$($acc\,{\rm :}~Int,~l\,{\rm :}~markup.Line$)$~$\Rightarrow$~l~{\vem match}~{\small\{}
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\vem case}~markup.NewLine~$\Rightarrow$~acc~$+$~1
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\vem case}~\_~$\Rightarrow$~acc
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~{\small\}}
+\\~~~~~~~~~~~~~~~~~~~~~~{\small\}}
+\\~~~~~~~~~~~~~~~~~~~~~~collectStats0$($rest,doclines,codelines~$+$~codels$)$
+\\[0.5em]\end{program}
+
+
+The documentation block code is similiar, again with an accumulator for
+the lines:
+
+$\left<\mbox{\emph{Sample block filters}}\right>+\equiv$
+\begin{program}~~~~~~~~~~~~~~~~~~{\vem case}~markup.DocuBlock$($\_,\_,lines$)$~$\Rightarrow$
+\\~~~~~~~~~~~~~~~~~~~~~~{\vem val}~doculs~=~$($lines~foldLeft~0$)$~{\small\{}
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~$($acc\,{\rm :}~Int,~l\,{\rm :}~markup.Line$)$~$\Rightarrow$~l~{\vem match}~{\small\{}
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\vem case}~markup.NewLine~$\Rightarrow$~acc~$+$~1
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\vem case}~\_~$\Rightarrow$~acc
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~{\small\}}
+\\~~~~~~~~~~~~~~~~~~~~~~{\small\}}
+\\~~~~~~~~~~~~~~~~~~~~~~collectStats0$($rest,doclines~$+$~doculs,~codelines$)$
+\\~~~~~~~~~~~~~~{\small\}}
+\\~~~~~~~~{\small\}}
+\\~~~~~~~~collectStats0$($bs,0,0$)$
+\\~~~~{\small\}}
+\\{\small\}}
+\\[0.5em]\end{program}
+
+
+Invoking this filter is as easy as calling
+
+\begin{verbatim}
+sweave -bfilter util.stats somefile.nw -o somefile.tex
+\end{verbatim}
+\end{document}
+
+

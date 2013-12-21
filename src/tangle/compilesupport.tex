@@ -1,0 +1,312 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{scaladefs}
+\usepackage{scalit}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\lhead{\today}
+\rhead{tangle/compilesupport.nw}
+\begin{document}
+\section{A closer integration in the Scala compiler}
+In the file \texttt{tangle.nw}, we outlined on how one could puzzle together a
+compileable file out of a stream of blocks. This is very useful on its own,
+but a closer compiler integration is desirable: This way, we can tell the
+compiler the real line numbers of our literate program and not of the tangled
+source - we will be able to debug more efficiently. Also, we can access
+information provided by the compiler: What was defined by this block and
+what variables will be used.
+
+Concretely, we will be implementing \texttt{CoTangle} which will call the
+compiler with the code taken from the stream of blocks. \texttt{LitComp} is
+the command line application that directly compiles an input literate
+program.
+
+Additionally, we provide an object that directly exposes
+\texttt{LiterateProgramSourceFiles}. This way, we can even use \texttt{scalac} to
+work with literate programs.
+
+$\left<\mbox{\emph{*}}\right>\equiv$
+\begin{program}{\vem package}~scalit.tangle
+\\[0.5em]$<$CoTangle~$-$~send~tangled~to~compiler$>$
+\\[0.5em]$<$A~source~file~format~{\vem for}~literate~programs$>$
+\\[0.5em]$<$A~{\vem new}~position~{\vem type}$>$
+\\[0.5em]$<$LitComp~$-$~the~command~line~application$>$
+\\[0.5em]$<$LiterateCompilerSupport~$-$~{\vem object}~{\vem for}~scalac$>$
+\\[0.5em]\end{program}
+
+
+\subsection{CoTangle}
+The following class will pass the source files that we get to the compiler (and
+maybe a destination directory),
+so a first step is to include the compiler class. Later, we'll outline
+how to actually compile.
+
+$\left<\mbox{\emph{CoTangle - send tangled to compiler}}\right>\equiv$
+\begin{program}{\vem class}~CoTangle$($sourceFiles\,{\rm :}~List$[$LiterateProgramSourceFile$]$,
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~destination\,{\rm :}~Option$[$String$]$$)$~{\small\{}
+\\~~~~$<$Include~a~compiler$>$
+\\~~~~$<$Compile~a~literate~program$>$
+\\{\small\}}
+\\[0.5em]\end{program}\classdefinition{CoTangle}
+\valuedefinition{CoTangle}{sourceFiles}
+\valuedefinition{CoTangle}{destination}
+
+
+
+The compiler will also have to have a place to report errors to,
+so we will need a reporter. The usual way would be to have an object
+overriding some behavior for this, but we will just instantiate a
+standard reporter.
+
+$\left<\mbox{\emph{Include a compiler}}\right>\equiv$
+\begin{program}~~~~{\vem import}~scala.tools.nsc.{\small\{}Global,Settings,reporters{\small\}}
+\\~~~~{\vem import}~reporters.ConsoleReporter
+\\[0.5em]\end{program}
+
+
+At the moment, there is only one setting that we might give to the compiler:
+If we have a destination directory, then we'll pass it
+
+$\left<\mbox{\emph{Include a compiler}}\right>+\equiv$
+\begin{program}~~~~{\vem val}~settings~=~{\vem new}~Settings$($$)$
+\\~~~~destination~{\vem match}~{\small\{}
+\\~~~~~~~~{\vem case}~Some$($dd$)$~$\Rightarrow$~{\small\{}
+\\~~~~~~~~~~~~settings.outdir.tryToSet$($List$($"$-$d",dd$)$$)$
+\\~~~~~~~~{\small\}}
+\\~~~~~~~~{\vem case}~None~$\Rightarrow$~$($$)$
+\\~~~~{\small\}}
+\\~~~~{\vem val}~reporter~=
+\\~~~~~~~~{\vem new}~ConsoleReporter$($settings,{\vem null},
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\vem new}~java.io.PrintWriter$($System.err$)$$)$
+\\~~~~{\vem val}~compiler~=~{\vem new}~Global$($settings,reporter$)$
+\\[0.5em]\end{program}
+
+
+\subsection{Literate program as a source file}
+After we have instanciated a compiler, we want to feed him a source
+file. In this file, we'd like to conserve original line numbering etc.
+
+Much of the functionality will be close to a batch source file. The main
+thing that changes is the mapping position $\rightarrow$ position in literate
+file.
+
+$\left<\mbox{\emph{A source file format for literate programs}}\right>\equiv$
+\begin{program}{\vem import}~scala.tools.nsc.util.{\small\{}BatchSourceFile,Position,LinePosition{\small\}}
+\\{\vem class}~LiterateProgramSourceFile$($chunks\,{\rm :}~ChunkCollection$)$
+\\~~~~{\vem extends}~BatchSourceFile$($chunks.filename,
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~chunks.serialize$($"$*$"$)$.toArray$)$~{\small\{}
+\\~~~~$<$line~mappings$>$
+\\~~~~$<$find~a~line$>$
+\\~~~~$<$the~original~source~file$>$
+\\~~~~$<$position~in~ultimate~source~file$>$
+\\{\small\}}
+\\[0.5em]\end{program}\classdefinition{LiterateProgramSourceFile}
+\valuedefinition{LiterateProgramSourceFile}{chunks}
+
+
+
+\subsection{Position in ultimate source file}
+The tangling process rearranges lines from the original literate program
+so that they are a valid source input. For compiling purposes, we want to
+find out to which original line a line in the tangled file corresponds. As
+this will be done quite often, we want to cache the results:
+
+$\left<\mbox{\emph{line mappings}}\right>\equiv$
+\begin{program}~~~~{\vem val}~lines2orig~=~{\vem new}~scala.collection.mutable.HashMap$[$Int,Int$]$$($$)$
+\\[0.5em]\end{program}
+
+
+Finding a line amounts to iterating over the stream of code blocks until
+we find the one containing the line. This might not be an optimal solution -
+now that we are eating the first newline after the chunk definition, it
+might actually happen that we point to the wrong line, for example with code
+like 
+
+\begin{verbatim}
+val s = <Read s>
+\end{verbatim}
+
+and
+
+\texttt{$\langle$$\langle$Read s$\rangle$$\rangle$=}
+\begin{verbatim}
+1/0
+\end{verbatim}
+
+Here, the error is in the second part of the code, but the line corresponding
+to the first part will be returned. One way to fix this would be to consider
+offset information.
+
+$\left<\mbox{\emph{find a line}}\right>\equiv$
+\begin{program}~~~~{\vem import}~scalit.markup.StringRefs.\_
+\\~~~~{\vem lazy}~{\vem val}~codeblocks\,{\rm :}~Stream$[$RealString$]$~=
+\\~~~~~~~~chunks.expandedStream$($"$*$"$)$
+\\[0.5em]~~~~{\vem def}~findOrigLine$($ol\,{\rm :}~Int$)${\rm :}~Int~=
+\\~~~~~~~~{\vem if}$($~lines2orig~contains~ol~$)$~lines2orig$($ol$)$
+\\~~~~~~~~{\vem else}~{\small\{}
+\\~~~~~~~~~~~~{\vem def}~find0$($offset\,{\rm :}~Int,
+\\~~~~~~~~~~~~~~~~~~~~search\,{\rm :}~Stream$[$RealString$]$$)${\rm :}~Int~=~search~{\vem match}~{\small\{}
+\\~~~~~~~~~~~~~~~~{\vem case}~Stream.empty~$\Rightarrow$~error$($"Could~not~find~line~{\vem for}~"~$+$~ol$)$
+\\~~~~~~~~~~~~~~~~{\vem case}~Stream.cons$($first,rest$)$~$\Rightarrow$
+\\~~~~~~~~~~~~~~~~~~~~first~{\vem match}~{\small\{}
+\\~~~~~~~~~~~~~~~~~~~~~~~~{\vem case}~RealString$($cont,from,to$)$~$\Rightarrow$~{\small\{}
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\vem val}~diff~=~to~$-$~from
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\vem if}$($~ol~$\geq$~offset~\&\&~ol~$\leq$~offset~$+$~diff~$)$~{\small\{}
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\vem val}~res~=~from~$+$~$($ol~$-$~offset$)$
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~lines2orig~$+$=~$($ol~$\rightarrow$~res$)$
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~res
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~{\small\}}~{\vem else}
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~find0$($offset~$+$~diff,rest$)$
+\\~~~~~~~~~~~~~~~~~~~~~~~~{\small\}}
+\\~~~~~~~~~~~~~~~~~~~~{\small\}}
+\\~~~~~~~~~~~~{\small\}}
+\\[0.5em]~~~~~~~~~~~~find0$($0,codeblocks$)$
+\\~~~~~~~~{\small\}}
+\\[0.5em]\end{program}\methoddefinition{LiterateProgramSourceFile}{findOrigLine}
+\valuedefinition{LiterateProgramSourceFile}{codeblocks}
+
+
+
+Most of the work was already done in the tangling phase, so we can
+just check whether we are inside a string from the source file. For error
+reporting, we will want to point to the original source file, but there
+is, of course a problem: The source might come from a markup file, or standard
+input and not just a literate program. But in any case except reading a literate
+program from standard input (which is of dubious utility anyway), we know the
+original source file because of the \texttt{@file} directive, which is then given
+to us as an argument. This is very suboptimal: We slurp the whole file
+for random access:
+
+$\left<\mbox{\emph{the original source file}}\right>\equiv$
+\begin{program}~~~~{\vem import}~scala.tools.nsc.util.{\small\{}SourceFile,CharArrayReader{\small\}}
+\\~~~~{\vem lazy}~{\vem val}~origSourceFile~=~{\small\{}
+\\~~~~~~~~{\vem val}~f~=~{\vem new}~java.io.File$($chunks.filename$)$
+\\~~~~~~~~{\vem val}~inf~=~{\vem new}~java.io.BufferedReader$($
+\\~~~~~~~~~~~~{\vem new}~java.io.FileReader$($f$)$$)$
+\\~~~~~~~~{\vem val}~arr~=~{\vem new}~Array$[$Char$]$$($f.length$($$)$.asInstanceOf$[$Int$]$$)$
+\\~~~~~~~~inf.read$($arr,0,f.length$($$)$.asInstanceOf$[$Int$]$$)$
+\\~~~~~~~~{\vem new}~BatchSourceFile$($chunks.filename,arr$)$
+\\~~~~{\small\}}
+\\[0.5em]\end{program}
+
+
+With all this information, we can finally override the method that tells
+us the position in the original source file. To access the original source
+file, 
+
+$\left<\mbox{\emph{position in ultimate source file}}\right>\equiv$
+\begin{program}~~~~{\vem override}~{\vem def}~positionInUltimateSource$($position\,{\rm :}~Position$)$~=~{\small\{}
+\\~~~~~~~~{\vem val}~line~=~position.line~{\vem match}~{\small\{}
+\\~~~~~~~~~~~~{\vem case}~None~$\Rightarrow$~0
+\\~~~~~~~~~~~~{\vem case}~Some$($l$)$~$\Rightarrow$~l
+\\~~~~~~~~{\small\}}
+\\~~~~~~~~{\vem val}~col~=~position.column~{\vem match}~{\small\{}
+\\~~~~~~~~~~~~{\vem case}~None~$\Rightarrow$~0
+\\~~~~~~~~~~~~{\vem case}~Some$($c$)$~$\Rightarrow$~c
+\\~~~~~~~~{\small\}}
+\\~~~~~~~~{\vem val}~literateLine~=~findOrigLine$($line$)$
+\\~~~~~~~~LineColPosition$($origSourceFile,literateLine,col$)$
+\\~~~~{\small\}}
+\\[0.5em]\end{program}\methoddefinition{LiterateProgramSourceFile}{positionInUltimateSource}
+
+
+
+The position class that we return is also defined especially for this
+use - we do not want to count the offset into the literate file:
+
+$\left<\mbox{\emph{A new position type}}\right>\equiv$
+\begin{program}{\vem import}~scala.tools.nsc.util.SourceFile
+\\{\vem case}~{\vem class}~LineColPosition$($source0\,{\rm :}~SourceFile,~line0\,{\rm :}~Int,
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~column0\,{\rm :}~Int$)$~{\vem extends}~Position~{\small\{}
+\\~~~~{\vem override}~{\vem def}~offset~=~None
+\\~~~~{\vem override}~{\vem def}~column\,{\rm :}~Option$[$Int$]$~=~Some$($column0$)$
+\\~~~~{\vem override}~{\vem def}~line\,{\rm :}~Option$[$Int$]$~~~=~Some$($line0$)$
+\\~~~~{\vem override}~{\vem def}~source~=~Some$($source0$)$
+\\{\small\}}
+\\[0.5em]\end{program}\classdefinition{LineColPosition}
+\methoddefinition{LineColPosition}{offset}
+\methoddefinition{LineColPosition}{column}
+\methoddefinition{LineColPosition}{line}
+\methoddefinition{LineColPosition}{source}
+\valuedefinition{LineColPosition}{source0 }
+\valuedefinition{LineColPosition}{line0 }
+\valuedefinition{LineColPosition}{column0 }
+
+
+
+\subsection{The compilation process}
+With the source file format in place, calling the compiler becomes quite
+simple: We create a new \texttt{Run} which will compile the files:
+
+$\left<\mbox{\emph{Compile a literate program}}\right>\equiv$
+\begin{program}~~~~{\vem def}~compile\,{\rm :}~Global\#Run~=~{\small\{}
+\\~~~~~~~~{\vem val}~r~=~{\vem new}~compiler.Run
+\\[0.5em]~~~~~~~~r.compileSources$($sourceFiles$)$
+\\~~~~~~~~{\vem if}$($~compiler.globalPhase.name~!=~"terminal"~$)$~{\small\{}
+\\~~~~~~~~~~~~System.err.println$($"Compilation~failed"$)$
+\\~~~~~~~~~~~~System.exit$($2$)$
+\\~~~~~~~~{\small\}}
+\\[0.5em]~~~~~~~~r
+\\~~~~{\small\}}
+\\[0.5em]\end{program}\methoddefinition{CoTangle}{compile}
+
+
+
+At the moment, we are not very specific about error reporting: If
+compilation does not work, we'll just exit.
+
+\subsection{The command line application}
+For this command line application, we just take the list of
+chunks from the literate settings. Then fo every such chunk
+we'll create a source file. All of these source files are
+compiled together and stored in the path given by the \texttt{-d}
+command line flag.
+
+$\left<\mbox{\emph{LitComp - the command line application}}\right>\equiv$
+\begin{program}{\vem object}~LitComp~{\small\{}
+\\~~~~{\vem def}~main$($args\,{\rm :}~Array$[$String$]$$)${\rm :}~Unit~=~{\small\{}
+\\~~~~~~~~{\vem import}~scalit.util.LiterateSettings
+\\[0.5em]~~~~~~~~{\vem val}~ls~=~{\vem new}~LiterateSettings$($args$)$
+\\[0.5em]~~~~~~~~{\vem val}~sourceFiles~=~ls.chunkCollections~map~{\small\{}
+\\~~~~~~~~~~~~cc~$\Rightarrow$~{\vem new}~LiterateProgramSourceFile$($cc$)$
+\\~~~~~~~~{\small\}}
+\\[0.5em]~~~~~~~~{\vem val}~destinationDir\,{\rm :}~Option$[$String$]$~=
+\\~~~~~~~~~~~~ls.settings~get~"$-$d"~{\vem match}~{\small\{}
+\\~~~~~~~~~~~~~~~~{\vem case}~Some$($x~{\rm :}{\rm :}~xs$)$~$\Rightarrow$~Some$($x$)$
+\\~~~~~~~~~~~~~~~~{\vem case}~\_~$\Rightarrow$~None
+\\~~~~~~~~~~~~{\small\}}
+\\[0.5em]~~~~~~~~{\vem val}~cotangle~=~{\vem new}~CoTangle$($sourceFiles,
+\\~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~destinationDir$)$
+\\[0.5em]~~~~~~~~cotangle.compile
+\\~~~~{\small\}}
+\\{\small\}}
+\\[0.5em]\end{program}\objectdefinition{LitComp}
+\methoddefinition{LitComp}{main}
+
+
+
+\subsection{Support for scalac}
+When the \texttt{scalac} compiler is invoked, it works directly on \texttt{SourceFile}s. Before these
+are parsed, we have to map the literate file to one of concrete code. Fortunately, we already
+have a class \texttt{LiterateProgramSourceFile} which serves that purpose. We therefore only provide
+one function, taking the filename of the literate source, building the chunks and then returning
+a \texttt{LiterateProgramSourceFile}.
+
+$\left<\mbox{\emph{LiterateCompilerSupport - object for scalac}}\right>\equiv$
+\begin{program}{\vem object}~LiterateCompilerSupport~{\small\{}
+\\~~~~{\vem def}~getLiterateSourceFile$($filename\,{\rm :}~String$)${\rm :}~BatchSourceFile~=~{\small\{}
+\\~~~~~~~~{\vem import}~scalit.util.conversions
+\\~~~~~~~~{\vem val}~cbs~=~conversions.codeblocks$($conversions.blocksFromLiterateFile$($filename$)$$)$
+\\~~~~~~~~{\vem val}~chunks~=~emptyChunkCollection$($filename$)$~addBlocks~cbs
+\\~~~~~~~~{\vem new}~LiterateProgramSourceFile$($chunks$)$
+\\~~~~{\small\}}
+\\{\small\}}
+\end{program}\objectdefinition{LiterateCompilerSupport}
+\methoddefinition{LiterateCompilerSupport}{getLiterateSourceFile}
+
+
+
+\end{document}
+
+
