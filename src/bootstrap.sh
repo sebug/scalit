@@ -33,7 +33,7 @@ if [ $? -eq 0 ]; then
     
     mkdir -p bootstrap
 
-    scala -cp stage1 tangle.LitComp markup/markup.nw markup/blocks.nw \
+    scala -cp stage1 scalit.tangle.LitComp markup/markup.nw markup/blocks.nw \
 	util/filters.nw util/commandline.nw util/conversions.nw \
 	tangle/tangle.nw tangle/compilesupport.nw \
 	-d bootstrap
@@ -46,7 +46,7 @@ if [ $? -eq 0 ]; then
 	echo "* Compiling with the new tangle"
 	mkdir -p classes
 	javac toolsupport/verbfilterScala.java -d classes
-	scala -cp bootstrap tangle.LitComp markup/markup.nw markup/blocks.nw \
+	scala -cp bootstrap scalit.tangle.LitComp markup/markup.nw markup/blocks.nw \
 	    util/filters.nw util/commandline.nw util/conversions.nw \
 	    tangle/tangle.nw tangle/compilesupport.nw \
 	    -d classes
