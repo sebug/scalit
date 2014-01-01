@@ -12,13 +12,11 @@ object StringRefs {
 }
 
 
-
 sealed abstract class Block(blocknumber: Int, linenumber: Int,
                             content: Stream[Line]) {
    import StringRefs._
 
-def stringRefForm(codeBlocks: Map[String,CodeBlock]): Stream[StringRef]
-
+   def stringRefForm(codeBlocks: Map[String,CodeBlock]): Stream[StringRef]
 
 }
 
@@ -50,9 +48,9 @@ ls match {
     case other => error("Unexpected line: " + other)
   }
 
-  case Stream.empty => acc match {
-    case "" => Stream.empty
-    case s  => Stream.cons(RealString(s,begin,off),Stream.empty)
+  case Stream.Empty => acc match {
+    case "" => Stream.Empty
+    case s  => Stream.cons(RealString(s,begin,off),Stream.Empty)
   }
 }
       
@@ -69,44 +67,41 @@ content: Stream[Line]) extends
       srContent
     }
     lazy val srContent: Stream[StringRef] = {
-    def srcAcc(ls: Stream[Line], acc: String): Stream[StringRef] =
-      ls match {
-        case Stream.empty =>
-          Stream.cons(RealString(acc,-1,-1),
-          Stream.empty)
-        case Stream.cons(first,rest) => first match {
-          case NewLine => srcAcc(rest,acc + "\n")
-          case TextLine(content) => srcAcc(rest, acc + content)
+      def srcAcc(ls: Stream[Line], acc: String): Stream[StringRef] =
+        ls match {
+          case Stream.Empty =>
+            Stream.cons(RealString(acc,-1,-1),
+            Stream.Empty)
+          case Stream.cons(first,rest) => first match {
+            case NewLine => srcAcc(rest,acc + "\n")
+            case TextLine(content) => srcAcc(rest, acc + content)
 
-case Quote => {
-  val (quoted,continue) = quote(rest,"")
-  Stream.cons(RealString(acc,-1,-1),
-  Stream.cons(quoted,srcAcc(continue,"")))
-}
-case other => error("Unexpected line in doc: " + other)
+  case Quote => {
+    val (quoted,continue) = quote(rest,"")
+    Stream.cons(RealString(acc,-1,-1),
+    Stream.cons(quoted,srcAcc(continue,"")))
+  }
+  case other => error("Unexpected line in doc: " + other)
+      }
     }
+
+     def quote(ls: Stream[Line],
+           acc: String): (QuotedString,Stream[Line]) =
+       ls match {
+         case Stream.Empty => (QuotedString(acc),Stream.Empty)
+         case Stream.cons(first,rest) => first match {
+           case NewLine => quote(rest, acc + "\n")
+           case TextLine(content) => quote(rest, acc + content)
+           case EndQuote => (QuotedString(acc),rest)
+           case other => error("Unexpected inside quote: " + other)
+         }
+       }
+
+      
+     srcAcc(content,"")
   }
 
-   def quote(ls: Stream[Line],
-      acc: String): (QuotedString,Stream[Line]) =
-  ls match {
-    case Stream.empty => (QuotedString(acc),Stream.empty)
-    case Stream.cons(first,rest) => first match {
-      case NewLine => quote(rest, acc + "\n")
-      case TextLine(content) => quote(rest, acc + content)
-      case EndQuote => (QuotedString(acc),rest)
-      case other => error("Unexpected inside quote: " + other)
-    }
-  }
-
-
-    
-   srcAcc(content,"")
 }
-
-
-}
-
 
 
 case class BlockBuilder(lines: Stream[Line]) {
@@ -123,92 +118,89 @@ case class BlockBuilder(lines: Stream[Line]) {
   }
 
     def readUpToTag(ls: Stream[Line],
-                  acc: Stream[Line],
-                  linenumber: Int,
-                  endTag: Line):
-    (Stream[Line],Stream[Line],Int) = ls match {
-      case Stream.empty =>
-        error("Expected end tag but found end of stream")
-      case Stream.cons(first,rest) =>
-        if( first == endTag )
-          (acc.reverse,rest,linenumber)
-        else first match {
-          case NewLine =>
-            readUpToTag(rest,
-              Stream.cons(first,acc),
-              linenumber + 1,endTag)
-          case other =>
-            readUpToTag(rest,
-              Stream.cons(first,acc),
-              linenumber,endTag)
-        }
-  }
-
+                    acc: Stream[Line],
+                    linenumber: Int,
+                    endTag: Line):
+      (Stream[Line],Stream[Line],Int) = ls match {
+        case Stream.Empty =>
+          error("Expected end tag but found end of stream")
+        case Stream.cons(first,rest) =>
+          if( first == endTag )
+            (acc.reverse,rest,linenumber)
+          else first match {
+            case NewLine =>
+              readUpToTag(rest,
+                Stream.cons(first,acc),
+                linenumber + 1,endTag)
+            case other =>
+              readUpToTag(rest,
+                Stream.cons(first,acc),
+                linenumber,endTag)
+          }
+    }
 
     def selectNext(ls: Stream[Line],
-                 linenumber: Int): Stream[Block] =
-    ls match {
-      case Stream.empty => Stream.empty
-      case Stream.cons(first,rest) => first match {
-        case Doc(n) => documentation(rest,n,linenumber)
-        case Code(n) => code(rest,n,linenumber)
-        case other => error("Expected begin code or begin doc" +
-                            "but found " + other)
+                   linenumber: Int): Stream[Block] =
+      ls match {
+        case Stream.Empty => Stream.Empty
+        case Stream.cons(first,rest) => first match {
+          case Doc(n) => documentation(rest,n,linenumber)
+          case Code(n) => code(rest,n,linenumber)
+          case other => error("Expected begin code or begin doc" +
+                              "but found " + other)
+        }
       }
-    }
 
-  def documentation(ls: Stream[Line],
-                    blocknumber: Int,
-                    linenumber: Int): Stream[Block] =
-    {
+    def documentation(ls: Stream[Line],
+                      blocknumber: Int,
+                      linenumber: Int): Stream[Block] =
+      {
 
-ls match {
-  case Stream.empty => error("Unexpected empty doc block")
-  case s @ Stream.cons(first,rest) => {
-    val (blockLines,cont,nextline) =
-    readUpToTag(s,Stream.empty,linenumber,EndDoc(blocknumber))
-    Stream.cons(
-    DocuBlock(blocknumber,
-              linenumber,
-              blockLines),
-     selectNext(cont,nextline))
-   }
- }
-}
-
-  def code(ls: Stream[Line],
-           blocknumber: Int,
-           linenumber: Int): Stream[Block] = {
-
-      val Stream.cons(defline,Stream.cons(nline,cont)) = ls
-      val chunkname = defline match {
-        case Definition(name) => name
-        case other => error("Expected definition but got " + other)
-      }
-      val cont2 = nline match {
-        case NewLine => cont
-        case _ => Stream.cons(nline,cont)
-      }
-      val linenumber2 = linenumber + 1
-
-    ls match {
-      case Stream.empty => error("Unexpected empty code block")
-      case Stream.cons(first,rest) =>
-        val (lines,continue,lnumber) =
-          readUpToTag(cont2,Stream.empty,
-                      linenumber2,EndCode(blocknumber))
-
+  ls match {
+    case Stream.Empty => error("Unexpected empty doc block")
+    case s @ Stream.cons(first,rest) => {
+      val (blockLines,cont,nextline) =
+      readUpToTag(s,Stream.Empty,linenumber,EndDoc(blocknumber))
       Stream.cons(
-        CodeBlock(blocknumber,
-                  linenumber2,
-                  lines,
-                  chunkname),selectNext(continue,lnumber))
-    }
+      DocuBlock(blocknumber,
+                linenumber,
+                blockLines),
+       selectNext(cont,nextline))
+     }
+   }
   }
 
+    def code(ls: Stream[Line],
+             blocknumber: Int,
+             linenumber: Int): Stream[Block] = {
+
+        val Stream.cons(defline,Stream.cons(nline,cont)) = ls
+        val chunkname = defline match {
+          case Definition(name) => name
+          case other => error("Expected definition but got " + other)
+        }
+        val cont2 = nline match {
+          case NewLine => cont
+          case _ => Stream.cons(nline,cont)
+        }
+        val linenumber2 = linenumber + 1
+
+      ls match {
+        case Stream.Empty => error("Unexpected empty code block")
+        case Stream.cons(first,rest) =>
+          val (lines,continue,lnumber) =
+            readUpToTag(cont2,Stream.Empty,
+                        linenumber2,EndCode(blocknumber))
+
+        Stream.cons(
+          CodeBlock(blocknumber,
+                    linenumber2,
+                    lines,
+                    chunkname),selectNext(continue,lnumber))
+      }
+    }
 
 }
-
 
 
 object Blocks {
@@ -230,6 +222,4 @@ object Blocks {
     }
   }
 }
-
-
 

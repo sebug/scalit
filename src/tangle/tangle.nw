@@ -127,7 +127,7 @@ whole code. In a first step, we'll have to expand references:
 <<puzzle code chunks together>>=
   def expandRefs(str: Stream[StringRef]): Stream[RealString] =
     str match {
-      case Stream.empty => Stream.empty
+      case Stream.Empty => Stream.Empty
       case Stream.cons(first,rest) =>
 	first match {
 	  case r @ RealString(_,_,_) =>

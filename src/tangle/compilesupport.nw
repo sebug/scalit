@@ -126,7 +126,7 @@ offset information.
     else {
       def find0(offset: Int,
 	  search: Stream[RealString]): Int = search match {
-	case Stream.empty => error("Could not find line for " + ol)
+	case Stream.Empty => error("Could not find line for " + ol)
         case Stream.cons(first,rest) =>
 	  first match {
 	    case RealString(cont,from,to) => {

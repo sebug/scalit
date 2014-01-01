@@ -113,9 +113,9 @@ ls match {
 Nothing special here.
 
 <<The block format>>=
-  case Stream.empty => acc match {
-    case "" => Stream.empty
-    case s  => Stream.cons(RealString(s,begin,off),Stream.empty)
+  case Stream.Empty => acc match {
+    case "" => Stream.Empty
+    case s  => Stream.cons(RealString(s,begin,off),Stream.Empty)
   }
 }
       
@@ -147,9 +147,9 @@ we'll not even store the line numbers of documentation: What for?
   lazy val srContent: Stream[StringRef] = {
     def srcAcc(ls: Stream[Line], acc: String): Stream[StringRef] =
       ls match {
-	case Stream.empty =>
+	case Stream.Empty =>
           Stream.cons(RealString(acc,-1,-1),
-          Stream.empty)
+          Stream.Empty)
 	case Stream.cons(first,rest) => first match {
 	  case NewLine => srcAcc(rest,acc + "\n")
 	  case TextLine(content) => srcAcc(rest, acc + content)
@@ -180,7 +180,7 @@ the content:
 def quote(ls: Stream[Line],
       acc: String): (QuotedString,Stream[Line]) =
   ls match {
-    case Stream.empty => (QuotedString(acc),Stream.empty)
+    case Stream.Empty => (QuotedString(acc),Stream.Empty)
     case Stream.cons(first,rest) => first match {
       case NewLine => quote(rest, acc + "\n")
       case TextLine(content) => quote(rest, acc + content)
@@ -226,7 +226,7 @@ numbers. This functionality can be extracted:
 		  linenumber: Int,
 		  endTag: Line):
     (Stream[Line],Stream[Line],Int) = ls match {
-      case Stream.empty =>
+      case Stream.Empty =>
 	error("Expected end tag but found end of stream")
       case Stream.cons(first,rest) =>
 	if( first == endTag )
@@ -254,7 +254,7 @@ content along the lines. First the function selectNext:
   def selectNext(ls: Stream[Line],
 		 linenumber: Int): Stream[Block] =
     ls match {
-      case Stream.empty => Stream.empty
+      case Stream.Empty => Stream.Empty
       case Stream.cons(first,rest) => first match {
 	case Doc(n) => documentation(rest,n,linenumber)
 	case Code(n) => code(rest,n,linenumber)
@@ -276,10 +276,10 @@ up to [[EndDoc(n)]] to [[DocuBlock]].
 
 <<define documentation and code splitting>>=
 ls match {
-  case Stream.empty => error("Unexpected empty doc block")
+  case Stream.Empty => error("Unexpected empty doc block")
   case s @ Stream.cons(first,rest) => {
     val (blockLines,cont,nextline) =
-    readUpToTag(s,Stream.empty,linenumber,EndDoc(blocknumber))
+    readUpToTag(s,Stream.Empty,linenumber,EndDoc(blocknumber))
     Stream.cons(
     DocuBlock(blocknumber,
 	      linenumber,
@@ -318,10 +318,10 @@ the information on from which line we actually have content.
 
 <<define documentation and code splitting>>=
     ls match {
-      case Stream.empty => error("Unexpected empty code block")
+      case Stream.Empty => error("Unexpected empty code block")
       case Stream.cons(first,rest) =>
         val (lines,continue,lnumber) =
-          readUpToTag(cont2,Stream.empty,
+          readUpToTag(cont2,Stream.Empty,
 		      linenumber2,EndCode(blocknumber))
 
       Stream.cons(

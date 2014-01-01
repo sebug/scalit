@@ -4,21 +4,19 @@ import markup.Line
 abstract class MarkupFilter extends
   (Stream[Line] => Stream[Line]) {
     def externalFilter(command: String,
-                     lines: Stream[Line]): Stream[Line] = {
-    val p = Runtime.getRuntime().exec(command)
+                       lines: Stream[Line]): Stream[Line] = {
+      val p = Runtime.getRuntime().exec(command)
 
-    val procWriter = new java.io.PrintWriter(p.getOutputStream())
+      val procWriter = new java.io.PrintWriter(p.getOutputStream())
 
-    lines foreach procWriter.println
+      lines foreach procWriter.println
 
-    procWriter.close()
-    p.waitFor()
-    util.conversions.linesFromMarkupInput(p.getInputStream())
-  }
-
+      procWriter.close()
+      p.waitFor()
+      util.conversions.linesFromMarkupInput(p.getInputStream())
+    }
 
 }
-
 
 
 class tee extends MarkupFilter {
@@ -39,12 +37,10 @@ class simplesubst extends MarkupFilter {
 }
 
 
-
 import markup.Block
 abstract class BlockFilter extends
   (Stream[Block] => Stream[Block]) {
 }
-
 
 
 class stats extends BlockFilter {
@@ -58,9 +54,9 @@ class stats extends BlockFilter {
                   doclines +
                   ", Code lines: " +
                   codelines),
-      Stream.cons(NewLine,Stream.empty)))
+      Stream.cons(NewLine,Stream.Empty)))
     Stream.concat(blocks,Stream.cons(
-      markup.DocuBlock(-1,-1,content),Stream.empty))
+      markup.DocuBlock(-1,-1,content),Stream.Empty))
   }
 
 
@@ -68,7 +64,7 @@ class stats extends BlockFilter {
     def collectStats0(str: Stream[Block],
                 doclines: Int,
                 codelines: Int): (Int,Int) = str match {
-       case Stream.empty => (doclines,codelines)
+       case Stream.Empty => (doclines,codelines)
        case Stream.cons(first,rest) => first match {
 
          case markup.CodeBlock(_,_,lines,_) =>
@@ -93,7 +89,5 @@ class stats extends BlockFilter {
     collectStats0(bs,0,0)
   }
 }
-
-
 
 

@@ -138,7 +138,7 @@ xs map {
       val filterClass = Class.forName(name)
       filterClass.newInstance.asInstanceOf[MarkupFilter]
     } catch {
-      case ex =>
+      case ex : Throwable =>
 	Console.err.println("Could not load filter " + name)
         System.exit(1)
 @ Somehow, System.exit is not enough for the type checker, therefore we will
@@ -164,7 +164,7 @@ lazy val blockFilters: List[BlockFilter] =
 	  val filterClass = Class.forName(name)
 	  filterClass.newInstance.asInstanceOf[BlockFilter]
 	} catch {
-	  case e =>
+	  case e : Throwable =>
 	    Console.err.println("Could not load" +
             " block filter " + name)
 	    System.exit(1)

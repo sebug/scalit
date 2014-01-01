@@ -148,9 +148,9 @@ holding them:
                   doclines +
                   ", Code lines: " +
                   codelines),
-      Stream.cons(NewLine,Stream.empty)))
+      Stream.cons(NewLine,Stream.Empty)))
     Stream.concat(blocks,Stream.cons(
-      markup.DocuBlock(-1,-1,content),Stream.empty))
+      markup.DocuBlock(-1,-1,content),Stream.Empty))
   }
 
 @ Now for the main collection function: It just traverses the
@@ -162,7 +162,7 @@ content of the blocks in unprocessed form:
     def collectStats0(str: Stream[Block],
                 doclines: Int,
                 codelines: Int): (Int,Int) = str match {
-       case Stream.empty => (doclines,codelines)
+       case Stream.Empty => (doclines,codelines)
        case Stream.cons(first,rest) => first match {
 
 @ If a code block is encountered, then we will just increment the

@@ -168,7 +168,7 @@ last token when we see [[LastLine]]
 def lines: Stream[Line] = {
   def lines0(input: StreamReader): Stream[Line] =
   nextToken(input) match {
-    case (LastLine,rest) => Stream.empty
+    case (LastLine,rest) => Stream.Empty
     case (line,rest) => Stream.cons(line, lines0(rest))
   }
   lines0(in)
@@ -428,11 +428,11 @@ with this information.
      if( !input.atEnd ) docAcc(input.rest,input.first :: acc)
      else acc match {
        case Nil => Stream.cons(EndDoc(docnumber),
-			     Stream.empty)
+			     Stream.Empty)
        case _ =>
 	 Stream.cons(TextLine(acc.reverse mkString ""),
          Stream.cons(NewLine,
-         Stream.cons(EndDoc(docnumber),Stream.empty)))
+         Stream.cons(EndDoc(docnumber),Stream.Empty)))
      }
    }
  }
@@ -455,9 +455,9 @@ def quote(inp: StreamReader): (Stream[Line], StreamReader) = {
      case ']' => input.rest.rest.first match {
        case ']' => quoteAcc(input.rest,']' :: acc)
        case _ => acc match {
-	 case Nil => (Stream.empty,input.rest.rest)
+	 case Nil => (Stream.Empty,input.rest.rest)
 	 case _ => (Stream.cons(TextLine(acc.reverse mkString ""),
-				Stream.empty),
+				Stream.Empty),
 		    input.rest.rest)
        }
      }
@@ -618,11 +618,11 @@ without any text in between, we will still interleave an empty text node.
     if( input.atEnd )
       acc match {
 	case Nil => Stream.cons(EndCode(codenumber),
-				Stream.empty)
+				Stream.Empty)
 	case _ =>
 	  Stream.cons(TextLine(acc.reverse mkString ""),
 	  Stream.cons(NewLine,
-	  Stream.cons(EndCode(codenumber),Stream.empty)))
+	  Stream.cons(EndCode(codenumber),Stream.Empty)))
       }
     else if( c == '\t' )
       codeAcc(input.rest,tab ::: acc )

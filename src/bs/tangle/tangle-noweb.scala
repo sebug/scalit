@@ -36,7 +36,6 @@ CodeBlock(bn,ln,cont,bname) {
 }
 
 
-
 import scala.collection.immutable.{Map,HashMap}
 case class ChunkCollection(cm: Map[String,CodeChunk],
                          filename: String) {
@@ -71,7 +70,7 @@ case class ChunkCollection(cm: Map[String,CodeChunk],
 
   def expandRefs(str: Stream[StringRef]): Stream[RealString] =
     str match {
-      case Stream.empty => Stream.empty
+      case Stream.Empty => Stream.Empty
       case Stream.cons(first,rest) =>
         first match {
           case r @ RealString(_,_,_) =>
@@ -102,7 +101,6 @@ case class ChunkCollection(cm: Map[String,CodeChunk],
 
 case class emptyChunkCollection(fn: String)
      extends ChunkCollection(Map(),fn)
-
 
 
 object Tangle {
@@ -139,6 +137,4 @@ object Tangle {
     }
   }
 }
-
-
 
