@@ -20,7 +20,7 @@ from a file or from standard input:
 import java.io.{BufferedReader,FileReader,InputStreamReader}
 import scala.util.parsing.input.StreamReader
 
-import markup.{Line,MarkupGenerator}
+import scalit.markup.{Line,MarkupGenerator}
 
 def linesFromLiterateFile(filename: String): Stream[Line] = {
   val input = StreamReader(
@@ -38,7 +38,7 @@ def linesFromLiterateInput(in: java.io.InputStream): Stream[Line] = {
 the class [[MarkupReader]]:
 
 <<to line format>>=
-import markup.MarkupParser
+import scalit.markup.MarkupParser
 def linesFromMarkupFile(filename: String): Stream[Line] = {
   val input = StreamReader(
                 new BufferedReader(
@@ -58,7 +58,7 @@ The block format takes a stream of lines as input, so we will have four similiar
 that just call the corresponding line generating functions.
 
 <<to block format>>=
-import markup.{BlockBuilder,Block}
+import scalit.markup.{BlockBuilder,Block}
 def blocksFromLiterateFile(filename: String): Stream[Block] =
   BlockBuilder(linesFromLiterateFile(filename)).blocks
 
@@ -75,7 +75,7 @@ def blocksFromMarkupInput(in: java.io.InputStream): Stream[Block] =
 We'll also have to make a (safe) downcast, unfortunately.
 
 <<to block format>>=
-import markup.{CodeBlock,DocuBlock}
+import scalit.markup.{CodeBlock,DocuBlock}
 def codeblocks(blocks: Stream[Block]): Stream[CodeBlock] =
   (blocks filter {
     case c: CodeBlock => true

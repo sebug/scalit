@@ -4,7 +4,7 @@ object conversions {
   import java.io.{BufferedReader,FileReader,InputStreamReader}
   import scala.util.parsing.input.StreamReader
 
-  import markup.{Line,MarkupGenerator}
+  import scalit.markup.{Line,MarkupGenerator}
 
   def linesFromLiterateFile(filename: String): Stream[Line] = {
     val input = StreamReader(
@@ -18,7 +18,7 @@ object conversions {
     (new MarkupGenerator(input,"")).lines
   }
 
-  import markup.MarkupParser
+  import scalit.markup.MarkupParser
   def linesFromMarkupFile(filename: String): Stream[Line] = {
     val input = StreamReader(
                   new BufferedReader(
@@ -34,7 +34,7 @@ object conversions {
 
 
 
-  import markup.{BlockBuilder,Block}
+  import scalit.markup.{BlockBuilder,Block}
   def blocksFromLiterateFile(filename: String): Stream[Block] =
     BlockBuilder(linesFromLiterateFile(filename)).blocks
 
@@ -47,7 +47,7 @@ object conversions {
   def blocksFromMarkupInput(in: java.io.InputStream): Stream[Block] =
     BlockBuilder(linesFromMarkupInput(in)).blocks
 
-  import markup.{CodeBlock,DocuBlock}
+  import scalit.markup.{CodeBlock,DocuBlock}
   def codeblocks(blocks: Stream[Block]): Stream[CodeBlock] =
     (blocks filter {
       case c: CodeBlock => true

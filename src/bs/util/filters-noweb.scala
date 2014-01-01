@@ -1,6 +1,6 @@
 package scalit.util
 
-import markup.Line
+import scalit.markup.Line
 abstract class MarkupFilter extends
   (Stream[Line] => Stream[Line]) {
     def externalFilter(command: String,
@@ -13,7 +13,7 @@ abstract class MarkupFilter extends
 
       procWriter.close()
       p.waitFor()
-      util.conversions.linesFromMarkupInput(p.getInputStream())
+      scalit.util.conversions.linesFromMarkupInput(p.getInputStream())
     }
 
 }
@@ -27,7 +27,7 @@ class tee extends MarkupFilter {
 
 class simplesubst extends MarkupFilter {
   def apply(lines: Stream[Line]): Stream[Line] = {
-    import markup.TextLine
+    import scalit.markup.TextLine
     lines map {
       case TextLine(cont) =>
         TextLine(cont.replace(" " + "LaTeX "," \\LaTeX "))
@@ -37,7 +37,7 @@ class simplesubst extends MarkupFilter {
 }
 
 
-import markup.Block
+import scalit.markup.Block
 abstract class BlockFilter extends
   (Stream[Block] => Stream[Block]) {
 }
@@ -47,7 +47,7 @@ class stats extends BlockFilter {
   def apply(blocks: Stream[Block]): Stream[Block] = {
     val (doclines,codelines) = collectStats(blocks)
 
-    import markup.{TextLine,NewLine}
+    import scalit.markup.{TextLine,NewLine}
     val content =
       Stream.cons(NewLine,
       Stream.cons(TextLine("Documentation lines: " +
@@ -56,7 +56,7 @@ class stats extends BlockFilter {
                   codelines),
       Stream.cons(NewLine,Stream.Empty)))
     Stream.concat(blocks,Stream.cons(
-      markup.DocuBlock(-1,-1,content),Stream.Empty))
+      scalit.markup.DocuBlock(-1,-1,content),Stream.Empty))
   }
 
 
@@ -67,19 +67,19 @@ class stats extends BlockFilter {
        case Stream.Empty => (doclines,codelines)
        case Stream.cons(first,rest) => first match {
 
-         case markup.CodeBlock(_,_,lines,_) =>
+         case scalit.markup.CodeBlock(_,_,lines,_) =>
            val codels = (lines foldLeft 0) {
-             (acc: Int, l: markup.Line) => l match {
-               case markup.NewLine => acc + 1
+             (acc: Int, l: scalit.markup.Line) => l match {
+               case scalit.markup.NewLine => acc + 1
                case _ => acc
              }
            }
            collectStats0(rest,doclines,codelines + codels)
 
-         case markup.DocuBlock(_,_,lines) =>
+         case scalit.markup.DocuBlock(_,_,lines) =>
            val doculs = (lines foldLeft 0) {
-             (acc: Int, l: markup.Line) => l match {
-               case markup.NewLine => acc + 1
+             (acc: Int, l: scalit.markup.Line) => l match {
+               case scalit.markup.NewLine => acc + 1
                case _ => acc
              }
            }

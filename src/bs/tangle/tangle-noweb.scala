@@ -1,10 +1,9 @@
 package scalit.tangle
-import markup._
+import scalit.markup._
 
-case class CodeChunk(bn: Int, ln: Int,
-           cont: Stream[Line],bname: String,
-           next: Option[CodeChunk]) extends
-CodeBlock(bn,ln,cont,bname) {
+case class CodeChunk(blocknumber: Int, linenumber: Int,
+           content: Stream[Line],blockname: String,
+           next: Option[CodeChunk]) extends scalit.markup.StringRefs.StringRef {
   
   import StringRefs._
 
@@ -75,9 +74,9 @@ case class ChunkCollection(cm: Map[String,CodeChunk],
         first match {
           case r @ RealString(_,_,_) =>
             Stream.cons(r,expandRefs(rest))
-          case BlockRef(ref) =>
+          case BlockRef(sref) =>
             Stream.concat(
-              expandRefs(cm(ref.blockname).stringRefForm(cm)),
+              expandRefs(cm(sref.blockname).stringRefForm(cm)),
               expandRefs(rest))
           case other => error("Unexpected string ref: " + other)
         }
@@ -99,13 +98,13 @@ case class ChunkCollection(cm: Map[String,CodeChunk],
   }
 }
 
-case class emptyChunkCollection(fn: String)
-     extends ChunkCollection(Map(),fn)
+//case class emptyChunkCollection(fn: String)
+//     extends ChunkCollection(Map(),fn)
 
 
 object Tangle {
   def main(args: Array[String]) = {
-    import util.LiterateSettings
+    import scalit.util.LiterateSettings
 
     val ls = new LiterateSettings(args)
 
@@ -130,7 +129,7 @@ object Tangle {
                 try {
                   out.println(cc.serialize(chunk))
                 } catch {
-                  case e => ()
+                  case e : Throwable => ()
                 }
             }
         }

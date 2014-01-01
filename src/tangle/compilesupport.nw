@@ -1,4 +1,10 @@
 \section{A closer integration in the Scala compiler}
+
+\textbf{Danger: dead code} - this worked with a 2.7 version of the scala
+compiler. A rewrite is needed for the latest. If you have a 2.7 compiler
+lying around, you can de-comment the chunk references below.
+
+
 In the file [[tangle.nw]], we outlined on how one could puzzle together a
 compileable file out of a stream of blocks. This is very useful on its own,
 but a closer compiler integration is desirable: This way, we can tell the
@@ -19,15 +25,15 @@ work with literate programs.
 <<*>>=
 package scalit.tangle
 
-<<CoTangle - send tangled to compiler>>
+//CoTangle - send tangled to compiler
 
-<<A source file format for literate programs>>
+//A source file format for literate programs
 
-<<A new position type>>
+//A new position type
 
-<<LitComp - the command line application>>
+//LitComp - the command line application
 
-<<LiterateCompilerSupport - object for scalac>>
+//LiterateCompilerSupport - object for scalac
 
 @ \subsection{CoTangle}
 The following class will pass the source files that we get to the compiler (and

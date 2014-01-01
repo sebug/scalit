@@ -28,7 +28,7 @@ These filters are basically functions from the input stream of lines to
 an altered stream of lines, therefore we inherit from this function:
 
 <<Filtering on Markup level>>=
-import markup.Line
+import scalit.markup.Line
 abstract class MarkupFilter extends
   (Stream[Line] => Stream[Line]) {
   <<Feed external utility with lines>>
@@ -70,7 +70,7 @@ For this, we use the conversion utility described in [[uti/conversions.nw]],
 <<Feed external utility with lines>>=
     procWriter.close()
     p.waitFor()
-    util.conversions.linesFromMarkupInput(p.getInputStream())
+    scalit.util.conversions.linesFromMarkupInput(p.getInputStream())
   }
 
 @ \subsubsection{Tee: A sample line filter}
@@ -93,7 +93,7 @@ the sequence "LaTeX" with its nice form: \LaTeX
 <<Sample markup filters>>=
 class simplesubst extends MarkupFilter {
   def apply(lines: Stream[Line]): Stream[Line] = {
-    import markup.TextLine
+    import scalit.markup.TextLine
     lines map {
       case TextLine(cont) =>
 	TextLine(cont.replace(" " + "LaTeX "," \\LaTeX "))
@@ -119,7 +119,7 @@ in the form of utility functions, so we basically can define the interface
 in one line:
 
 <<Filtering on Block level>>=
-import markup.Block
+import scalit.markup.Block
 abstract class BlockFilter extends
   (Stream[Block] => Stream[Block]) {
 }
@@ -141,7 +141,7 @@ class stats extends BlockFilter {
 holding them:
 
 <<Sample block filters>>=
-    import markup.{TextLine,NewLine}
+    import scalit.markup.{TextLine,NewLine}
     val content =
       Stream.cons(NewLine,
       Stream.cons(TextLine("Documentation lines: " +
@@ -150,7 +150,7 @@ holding them:
                   codelines),
       Stream.cons(NewLine,Stream.Empty)))
     Stream.concat(blocks,Stream.cons(
-      markup.DocuBlock(-1,-1,content),Stream.Empty))
+      scalit.markup.DocuBlock(-1,-1,content),Stream.Empty))
   }
 
 @ Now for the main collection function: It just traverses the
@@ -169,10 +169,10 @@ content of the blocks in unprocessed form:
 number of lines of code:
 
 <<Sample block filters>>=
-	 case markup.CodeBlock(_,_,lines,_) =>
+	 case scalit.markup.CodeBlock(_,_,lines,_) =>
 	   val codels = (lines foldLeft 0) {
-	     (acc: Int, l: markup.Line) => l match {
-	       case markup.NewLine => acc + 1
+	     (acc: Int, l: scalit.markup.Line) => l match {
+	       case scalit.markup.NewLine => acc + 1
 	       case _ => acc
 	     }
 	   }
@@ -182,10 +182,10 @@ number of lines of code:
 the lines:
 
 <<Sample block filters>>=
-	 case markup.DocuBlock(_,_,lines) =>
+	 case scalit.markup.DocuBlock(_,_,lines) =>
 	   val doculs = (lines foldLeft 0) {
-	     (acc: Int, l: markup.Line) => l match {
-	       case markup.NewLine => acc + 1
+	     (acc: Int, l: scalit.markup.Line) => l match {
+	       case scalit.markup.NewLine => acc + 1
 	       case _ => acc
 	     }
 	   }

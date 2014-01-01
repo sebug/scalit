@@ -71,7 +71,7 @@ class LiterateSettings(val settings: Map[String,List[String]],
         case ex : Throwable =>
           Console.err.println("Could not load filter " + name)
           System.exit(1)
-          new util.tee
+          new scalit.util.tee
       }
      }
     }
@@ -91,7 +91,7 @@ class LiterateSettings(val settings: Map[String,List[String]],
               Console.err.println("Could not load" +
               " block filter " + name)
               System.exit(1)
-              new util.stats
+              new scalit.util.stats
           }
       }
     }
@@ -103,7 +103,7 @@ class LiterateSettings(val settings: Map[String,List[String]],
         }
     }
 
-    val blocks: List[(Stream[markup.Block],String)] = lines map {
+    val blocks: List[(Stream[scalit.markup.Block],String)] = lines map {
       l => {
         val bb = BlockBuilder(l)
         val filteredBlocks: Stream[Block] =
@@ -114,10 +114,9 @@ class LiterateSettings(val settings: Map[String,List[String]],
       }
     }
 
-  import scalit.tangle.emptyChunkCollection
   lazy val chunkCollections = blocks map {
     case (bs,name) =>
-    emptyChunkCollection(name) addBlocks conversions.codeblocks(bs)
+    scalit.tangle.ChunkCollection(Map(),name) addBlocks conversions.codeblocks(bs)
   }
 }
 

@@ -13,7 +13,7 @@ directly associated with the map and will be explained in section
 
 <<*>>=
 package scalit.tangle
-import markup._
+import scalit.markup._
 
 <<code chunks>>
 
@@ -29,10 +29,9 @@ So a pointer to the next code block describing this chunk has to be
 provided. We do this using an [[Option]]:
 
 <<code chunks>>=
-case class CodeChunk(bn: Int, ln: Int,
-           cont: Stream[Line],bname: String,
-           next: Option[CodeChunk]) extends
-CodeBlock(bn,ln,cont,bname) {
+case class CodeChunk(blocknumber: Int, linenumber: Int,
+           content: Stream[Line],blockname: String,
+           next: Option[CodeChunk]) extends scalit.markup.StringRefs.StringRef {
   
   import StringRefs._
 
@@ -132,9 +131,9 @@ whole code. In a first step, we'll have to expand references:
 	first match {
 	  case r @ RealString(_,_,_) =>
 	    Stream.cons(r,expandRefs(rest))
-	  case BlockRef(ref) =>
+	  case BlockRef(sref) =>
 	    Stream.concat(
-	      expandRefs(cm(ref.blockname).stringRefForm(cm)),
+	      expandRefs(cm(sref.blockname).stringRefForm(cm)),
 	      expandRefs(rest))
 	  case other => error("Unexpected string ref: " + other)
 	}
@@ -163,8 +162,8 @@ whole code. In a first step, we'll have to expand references:
 to the empty chunk collection of a particular file name:
 
 <<puzzle code chunks together>>=
-case class emptyChunkCollection(fn: String)
-     extends ChunkCollection(Map(),fn)
+//case class emptyChunkCollection(fn: String)
+//     extends ChunkCollection(Map(),fn)
 
 @  \subsection{The main program}
 With serialize defined, we can now accomplish the task of printing
@@ -182,7 +181,7 @@ The following options can be given to tangle:
 <<output the source>>=
 object Tangle {
   def main(args: Array[String]) = {
-    import util.LiterateSettings
+    import scalit.util.LiterateSettings
 
     val ls = new LiterateSettings(args)
 
@@ -211,7 +210,7 @@ that we are given, extracting the specific chunk.
 		try {
 		  out.println(cc.serialize(chunk))
 		} catch {
-		  case e => ()
+		  case e : Throwable => ()
 		}
 	    }
 	}

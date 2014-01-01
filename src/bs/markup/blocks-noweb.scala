@@ -1,7 +1,7 @@
 package scalit.markup
 
 object StringRefs {
-  sealed abstract class StringRef
+  abstract class StringRef
   case class RealString(content: String,
                   from: Int,
                   to: Int) extends StringRef
@@ -209,7 +209,7 @@ object Blocks {
   }
 
   def main(args: Array[String]) = {
-    import util.conversions._
+    import scalit.util.conversions._
 
     val blocks = args.length match {
       case 0 => blocksFromLiterateInput(System.in)

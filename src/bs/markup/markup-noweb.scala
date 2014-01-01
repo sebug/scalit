@@ -388,7 +388,7 @@ object Markup {
   }
 
   def main(args: Array[String]) = {
-    import util.LiterateSettings
+    import scalit.util.LiterateSettings
 
     val settings = new LiterateSettings(args)
 
