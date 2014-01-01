@@ -33,26 +33,64 @@ if [ $? -eq 0 ]; then
     
     mkdir -p bootstrap
 
-    scala -cp stage1 scalit.tangle.LitComp markup/markup.nw markup/blocks.nw \
-	util/filters.nw util/commandline.nw util/conversions.nw \
-	tangle/tangle.nw tangle/compilesupport.nw \
-	-d bootstrap
+    mkdir -p bootstrap-sources
+    mkdir -p bootstrap-sources/util
+    mkdir -p bootstrap-sources/markup
+    mkdir -p bootstrap-sources/tangle
+
+    stage1tangle="scala -cp stage1 scalit.tangle.Tangle"
+
+    $stage1tangle util/conversions.nw > bootstrap-sources/util/conversions-noweb.scala
+    $stage1tangle util/commandline.nw > bootstrap-sources/util/commandline-noweb.scala
+    $stage1tangle util/filters.nw > bootstrap-sources/util/filters-noweb.scala
+    $stage1tangle markup/markup.nw > bootstrap-sources/markup/markup-noweb.scala
+    $stage1tangle markup/blocks.nw > bootstrap-sources/markup/blocks-noweb.scala
+    $stage1tangle tangle/tangle.nw > bootstrap-sources/tangle/tangle-noweb.scala
+    $stage1tangle tangle/compilesupport.nw > bootstrap-sources/tangle/compilesupport-noweb.scala
+
+#    scala -cp stage1 scalit.tangle.LitComp markup/markup.nw markup/blocks.nw \
+#	util/filters.nw util/commandline.nw util/conversions.nw \
+#	tangle/tangle.nw tangle/compilesupport.nw \
+#	-d bootstrap
+    scalac bootstrap-sources/*/*.scala -d bootstrap
 
     if [ $? -eq 0 ]; then
 	echo "* Removing old compiled files"
 	rm -r stage1
+	rm -r bootstrap-sources
 #	rm -r bs
 
 	echo "* Compiling with the new tangle"
 	mkdir -p classes
 	javac toolsupport/verbfilterScala.java -d classes
-	scala -cp bootstrap scalit.tangle.LitComp markup/markup.nw markup/blocks.nw \
-	    util/filters.nw util/commandline.nw util/conversions.nw \
-	    tangle/tangle.nw tangle/compilesupport.nw \
-	    -d classes
+
+	mkdir -p stage2-sources
+	mkdir -p stage2-sources/util
+	mkdir -p stage2-sources/markup
+	mkdir -p stage2-sources/tangle
+
+	stage2tangle="scala -cp bootstrap scalit.tangle.Tangle"
+
+	$stage2tangle util/conversions.nw > stage2-sources/util/conversions-noweb.scala
+	$stage2tangle util/commandline.nw > stage2-sources/util/commandline-noweb.scala
+	$stage2tangle util/filters.nw > stage2-sources/util/filters-noweb.scala
+	$stage2tangle markup/markup.nw > stage2-sources/markup/markup-noweb.scala
+	$stage2tangle markup/blocks.nw > stage2-sources/markup/blocks-noweb.scala
+	$stage2tangle tangle/tangle.nw > stage2-sources/tangle/tangle-noweb.scala
+	$stage2tangle tangle/compilesupport.nw > stage2-sources/tangle/compilesupport-noweb.scala
+
+	
+
+#	scala -cp bootstrap scalit.tangle.LitComp markup/markup.nw markup/blocks.nw \
+#	    util/filters.nw util/commandline.nw util/conversions.nw \
+#	    tangle/tangle.nw tangle/compilesupport.nw \
+#	    -d classes
+	scalac stage2-sources/*/*.scala -d classes
+
 	if [ $? -eq 0 ]; then
 	    echo "* Compilation succeeded"
 	    rm -r bootstrap
+	    rm -r stage2-sources
 	fi
     else
 	echo "!!! Could not compile with noweb-compiled tangle"
