@@ -16,7 +16,7 @@ sealed abstract class Block(blocknumber: Int, linenumber: Int,
                             content: Stream[Line]) {
    import StringRefs._
 
-   def stringRefForm(codeBlocks: Map[String,CodeBlock]): Stream[StringRef]
+   def stringRefForm(codeBlocks: scala.collection.immutable.Map[String,CodeBlock]): Stream[StringRef]
 
 }
 
@@ -40,12 +40,12 @@ ls match {
         case None =>
           System.err.println("Did not find block " +
                          usename)
-          exit(1)
+          sys.exit(1)
       }
       Stream.cons(RealString(acc,begin,off),
       Stream.cons(BlockRef(cb),cbAcc(rest,"",off,off)))
     }
-    case other => error("Unexpected line: " + other)
+    case other => sys.error("Unexpected line: " + other)
   }
 
   case Stream.Empty => acc match {
@@ -81,7 +81,7 @@ content: Stream[Line]) extends
     Stream.cons(RealString(acc,-1,-1),
     Stream.cons(quoted,srcAcc(continue,"")))
   }
-  case other => error("Unexpected line in doc: " + other)
+  case other => sys.error("Unexpected line in doc: " + other)
       }
     }
 
@@ -93,7 +93,7 @@ content: Stream[Line]) extends
            case NewLine => quote(rest, acc + "\n")
            case TextLine(content) => quote(rest, acc + content)
            case EndQuote => (QuotedString(acc),rest)
-           case other => error("Unexpected inside quote: " + other)
+           case other => sys.error("Unexpected inside quote: " + other)
          }
        }
 
@@ -109,12 +109,12 @@ case class BlockBuilder(lines: Stream[Line]) {
     case Stream.cons(_,beg @ Stream.cons(Doc(0),_)) => {
       selectNext(beg,0)
     }
-    case _ => error("Unexpected beginnig: " + lines.take(2).toList)
+    case _ => sys.error("Unexpected beginnig: " + lines.take(2).toList)
   }
 
   def filename: String = lines.head match {
     case File(fname) => fname
-    case other => error("Unexpected first line: " + other)
+    case other => sys.error("Unexpected first line: " + other)
   }
 
     def readUpToTag(ls: Stream[Line],
@@ -123,7 +123,7 @@ case class BlockBuilder(lines: Stream[Line]) {
                     endTag: Line):
       (Stream[Line],Stream[Line],Int) = ls match {
         case Stream.Empty =>
-          error("Expected end tag but found end of stream")
+          sys.error("Expected end tag but found end of stream")
         case Stream.cons(first,rest) =>
           if( first == endTag )
             (acc.reverse,rest,linenumber)
@@ -146,7 +146,7 @@ case class BlockBuilder(lines: Stream[Line]) {
         case Stream.cons(first,rest) => first match {
           case Doc(n) => documentation(rest,n,linenumber)
           case Code(n) => code(rest,n,linenumber)
-          case other => error("Expected begin code or begin doc" +
+          case other => sys.error("Expected begin code or begin doc" +
                               "but found " + other)
         }
       }
@@ -157,7 +157,7 @@ case class BlockBuilder(lines: Stream[Line]) {
       {
 
   ls match {
-    case Stream.Empty => error("Unexpected empty doc block")
+    case Stream.Empty => sys.error("Unexpected empty doc block")
     case s @ Stream.cons(first,rest) => {
       val (blockLines,cont,nextline) =
       readUpToTag(s,Stream.Empty,linenumber,EndDoc(blocknumber))
@@ -177,7 +177,7 @@ case class BlockBuilder(lines: Stream[Line]) {
         val Stream.cons(defline,Stream.cons(nline,cont)) = ls
         val chunkname = defline match {
           case Definition(name) => name
-          case other => error("Expected definition but got " + other)
+          case other => sys.error("Expected definition but got " + other)
         }
         val cont2 = nline match {
           case NewLine => cont
@@ -186,7 +186,7 @@ case class BlockBuilder(lines: Stream[Line]) {
         val linenumber2 = linenumber + 1
 
       ls match {
-        case Stream.Empty => error("Unexpected empty code block")
+        case Stream.Empty => sys.error("Unexpected empty code block")
         case Stream.cons(first,rest) =>
           val (lines,continue,lnumber) =
             readUpToTag(cont2,Stream.Empty,
@@ -214,7 +214,7 @@ object Blocks {
     val blocks = args.length match {
       case 0 => blocksFromLiterateInput(System.in)
       case 1 => blocksFromLiterateFile(args(0))
-      case _ => usage; exit
+      case _ => usage; sys.exit()
     }
 
     blocks foreach {

@@ -98,7 +98,7 @@ class MarkupParser(in: StreamReader) {
         System.err.println("Found a line not beginning" +
                    " with @, but with " +
                    input.first)
-        exit(1)
+        sys.exit(1)
     }
   }
 
@@ -125,7 +125,7 @@ object MarkupReader {
     val input: Reader = args.length match {
       case 0 => new InputStreamReader(System.in)
       case 1 => new BufferedReader(new FileReader(args(0)))
-      case _ => usage; exit
+      case _ => usage; sys.exit()
     }
     val markupReader = new MarkupParser(StreamReader(input))
     markupReader.lines foreach {
@@ -179,7 +179,7 @@ class MarkupGenerator(in: StreamReader, filename: String) {
           case '<' => input.rest.first match {
             case '<' => acc match {
               case x :: xs =>
-                   error("Unescaped << in doc mode")
+                   sys.error("Unescaped << in doc mode")
               case Nil =>
                   val (chunkName,continue) = chunkDef(input.rest.rest)
                   Stream.cons(EndDoc(docnumber),
@@ -351,7 +351,7 @@ class MarkupGenerator(in: StreamReader, filename: String) {
       case '>' => input.rest.first match {
         case '>' => input.rest.rest.first match {
         case '=' => ((acc.reverse mkString ""),input.rest.rest.rest)
-        case _ => System.err.println("Unescaped"); exit
+        case _ => System.err.println("Unescaped"); sys.exit()
       }
       case _ => chunkAcc(input.rest, '>' :: acc)
     }

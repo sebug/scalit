@@ -25,11 +25,41 @@ case class CodeChunk(blocknumber: Int, linenumber: Int,
                 Some(next append that))
   }
 
-  override def stringRefForm(codeChunks: Map[String,CodeBlock]):
+  def superStringRefForm(codeBlocks: scala.collection.immutable.Map[String,CodeBlock]) = {
+  def cbAcc(ls: Stream[Line], acc: String,
+        begin: Int, off: Int): Stream[StringRef] =
+ls match {
+  case Stream.cons(first,rest) => first match {
+    case NewLine => cbAcc(rest, acc + "\n", begin, off + 1)
+    case TextLine(content) =>
+      cbAcc(rest, acc + content, begin, off)
+    case Use(usename) => {
+      val cb = codeBlocks get usename match {
+        case Some(codeBlock) => codeBlock
+        case None =>
+          System.err.println("Did not find block " +
+                         usename)
+          sys.exit(1)
+      }
+      Stream.cons(RealString(acc,begin,off),
+      Stream.cons(BlockRef(cb),cbAcc(rest,"",off,off)))
+    }
+    case other => sys.error("Unexpected line: " + other)
+}
+  case Stream.Empty => acc match {
+    case "" => Stream.Empty
+    case s  => Stream.cons(RealString(s,begin,off),Stream.Empty)
+}
+}
+
+cbAcc(content,"",linenumber,linenumber)
+}
+
+  def stringRefForm(codeChunks: scala.collection.immutable.Map[String,CodeBlock]):
     Stream[StringRef] = next match {
-      case None => super.stringRefForm(codeChunks)
+      case None => superStringRefForm(codeChunks)
       case Some(el) => Stream.concat(
-        super.stringRefForm(codeChunks),
+        superStringRefForm(codeChunks),
         el.stringRefForm(codeChunks))
     }
 }
@@ -41,10 +71,16 @@ case class ChunkCollection(cm: Map[String,CodeChunk],
 
   import StringRefs._
 
+  def stringCodeChunkToStringCodeBlock(kv : (String,CodeChunk)) = {
+    kv match {
+      case (key,CodeChunk(bn,ln,cont,bname,_)) => (key,CodeBlock(bn,ln,cont,bname))
+    }
+  }
+
   def serialize(chunkname: String): String =
     cm get chunkname match {
-      case None => error("Did not find chunk " + chunkname)
-      case Some(el) => flatten(el.stringRefForm(cm))
+      case None => sys.error("Did not find chunk " + chunkname)
+      case Some(el) => flatten(el.stringRefForm(cm map stringCodeChunkToStringCodeBlock))
     }
 
   def addBlock(that: CodeBlock): ChunkCollection =
@@ -76,16 +112,16 @@ case class ChunkCollection(cm: Map[String,CodeChunk],
             Stream.cons(r,expandRefs(rest))
           case BlockRef(sref) =>
             Stream.concat(
-              expandRefs(cm(sref.blockname).stringRefForm(cm)),
+              expandRefs(cm(sref.blockname).stringRefForm(cm map stringCodeChunkToStringCodeBlock)),
               expandRefs(rest))
-          case other => error("Unexpected string ref: " + other)
+          case other => sys.error("Unexpected string ref: " + other)
         }
     }
 
   def expandedStream(chunkname: String): Stream[RealString] =
     cm get chunkname match {
-      case None => error("Did not find chunk " + chunkname)
-      case Some(el) => expandRefs(el.stringRefForm(cm))
+      case None => sys.error("Did not find chunk " + chunkname)
+      case Some(el) => expandRefs(el.stringRefForm(cm map stringCodeChunkToStringCodeBlock))
     }
 
 
